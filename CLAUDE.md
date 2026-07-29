@@ -132,6 +132,17 @@ Every executed contract is parsed into this schema before insertion into the dat
 
 ---
 
+## PDF Handling
+
+**Any PDF attached or referenced in this workspace must be chunked before reading.** Do not read a PDF directly or load it whole into context. Instead:
+
+1. Run `contracts/chunker.sh <pdf> <output_dir>` (1-page text chunks with paragraph overlap at boundaries; optional third arg overrides pages per chunk).
+2. Read the resulting `chunk_NN.txt` files sequentially, processing per chunk.
+3. Text under `[OVERLAP FROM PREVIOUS CHUNK]` was already processed — use it only for clauses split across a boundary; do not double-extract.
+4. Exit code `2` means no text layer (scanned PDF): stop and flag for OCR/manual review — never proceed with empty chunks (see Coding Conventions: never silently swallow parsing failures).
+
+---
+
 ## Coding Conventions
 
 Tech stack is not yet finalized (see `PRD.md` open questions — build vs. buy on redline diffing engine). The conventions below are stack-agnostic and apply regardless of what's chosen.

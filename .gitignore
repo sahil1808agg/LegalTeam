@@ -1,1 +1,4 @@
 .claude/settings.local.json
+
+# PDF chunker output (contracts/chunker.sh) - regenerable, never commit chunked contract text
+contracts/chunks/
