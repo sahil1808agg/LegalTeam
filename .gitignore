@@ -2,3 +2,6 @@
 
 # PDF chunker output (contracts/chunker.sh) - regenerable, never commit chunked contract text
 contracts/chunks/
+
+# NDA drafter output (drafting/draft_nda.sh) - regenerable, never commit drafted contract text
+drafting/output/

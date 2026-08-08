@@ -10,6 +10,7 @@
       "Write(tests/**)",
       "Edit(tests/**)",
       "Read(config/**)",
+      "Read(drafting/**)",
       "Bash(npm run test *)",
       "Bash(npm run lint)"
     ]
