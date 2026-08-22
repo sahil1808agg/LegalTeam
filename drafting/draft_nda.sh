@@ -13,7 +13,7 @@
 #          --jurisdiction JURISDICTION --term TERM_LENGTH --mutual yes|no \
 #          [--stdout]
 #
-# Output: drafting/output/NDA_<party-a-slug>_<party-b-slug>_<YYYY-MM-DD>.md
+# Output: drafting/output/<YYYY-MM-DD>_NDA_<party-a-slug>_<party-b-slug>.md
 
 set -euo pipefail
 
@@ -132,7 +132,7 @@ slugify() {
 
 mkdir -p "$OUT_DIR"
 DATE_STAMP="$(date +%Y-%m-%d)"
-OUT_FILE="$OUT_DIR/NDA_$(slugify "$PARTY_A")_$(slugify "$PARTY_B")_${DATE_STAMP}.md"
+OUT_FILE="$OUT_DIR/${DATE_STAMP}_NDA_$(slugify "$PARTY_A")_$(slugify "$PARTY_B").md"
 
 printf '%s\n' "$OUTPUT" > "$OUT_FILE"
 
