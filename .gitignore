@@ -5,3 +5,6 @@ contracts/chunks/
 
 # NDA drafter output (drafting/draft_nda.sh) - regenerable, never commit drafted contract text
 drafting/output/
+
+# Redline report output (redlining/redline.sh) - regenerable, never commit generated reports
+redlining/output/
