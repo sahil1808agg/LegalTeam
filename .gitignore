@@ -8,3 +8,9 @@ drafting/output/
 
 # Redline report output (redlining/redline.sh) - regenerable, never commit generated reports
 redlining/output/
+
+# Transient per-call timing state for the post_redline.sh hook
+.claude/hooks/.redline_timing/
+
+# Single-use human-confirmation markers for the freshness_check.sh hook
+.claude/hooks/.freshness_override/
