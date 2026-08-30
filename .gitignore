@@ -9,6 +9,9 @@ drafting/output/
 # Redline report output (redlining/redline.sh) - regenerable, never commit generated reports
 redlining/output/
 
+# Extraction output (extraction/extract.sh) - regenerable, never commit extracted contract data
+extraction/output/
+
 # Transient per-call timing state for the post_redline.sh hook
 .claude/hooks/.redline_timing/
 
