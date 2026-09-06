@@ -16,6 +16,13 @@
           "default_channel": "#legal-contracts"
         }
       }
+    },
+    "notion@anthropic-tools": {
+      "mcpServers": {
+        "notion": {
+          "workspace_name": "ContractIQ"
+        }
+      }
     }
   },
   "permissions": {
