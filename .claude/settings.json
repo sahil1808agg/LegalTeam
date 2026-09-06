@@ -1,6 +1,23 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "model": "claude-sonnet-5",
+  "enableAllProjectMcpServers": true,
+  "pluginConfigs": {
+    "google-drive@anthropic-tools": {
+      "mcpServers": {
+        "google-drive": {
+          "google_drive_folder": "Legal Contracts"
+        }
+      }
+    },
+    "slack@anthropic-tools": {
+      "mcpServers": {
+        "slack": {
+          "default_channel": "#legal-contracts"
+        }
+      }
+    }
+  },
   "permissions": {
     "allow": [
       "Read(src/**)",
@@ -16,7 +33,9 @@
     ]
   },
   "env": {
-    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "70000"
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "70000",
+    "CONTRACTIQ_SLACK_CHANNEL": "#legal-contracts",
+    "CONTRACTIQ_PRIMARY_NOTIFICATION_CHANNEL": "slack"
   },
   "hooks": {
     "PreToolUse": [
