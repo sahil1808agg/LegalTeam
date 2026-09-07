@@ -308,40 +308,20 @@ EOF
           echo "$slack_message" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Post to Slack (MCP integration point)
-        id: slack
+      - name: Post to Slack via Webhook
+        if: env.SLACK_WEBHOOK_URL != ''
         env:
           SLACK_MESSAGE: ${{ steps.prepare.outputs.slack_message }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          cat << 'EOF'
-
-          📨 MCP SLACK INTEGRATION
-          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-          When Claude Code MCP is integrated with this workflow:
-
-          1. Use mcp__claude_ai_Slack__slack_send_message to post:
-             - Channel: #legal-contracts
-             - Message payload prepared below
-             - Formatted with contract details
-             - Color-coded by risk level
-
-          2. Fallback: Use GitHub API to create workflow artifact
-
-          3. Current payload ready for Slack:
-          EOF
-
-          echo ""
-          echo "$SLACK_MESSAGE" | jq '.'
-
-          echo ""
-          echo "✓ Slack notification structure ready"
-          echo ""
-          echo "Alternative: Set SLACK_WEBHOOK_URL secret to use curl:"
-          echo "  curl -X POST -H 'Content-type: application/json' \\"
-          echo "    --data '@slack_payload.json' \\"
-          echo "    \$SLACK_WEBHOOK_URL"
-          EOF
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            echo "$SLACK_MESSAGE" | \
+            curl -X POST -H 'Content-type: application/json' \
+              --data @- \
+              "$SLACK_WEBHOOK_URL" && echo "✓ Posted renewal digest to Slack" || echo "✗ Slack post failed"
+          else
+            echo "⚠️  SLACK_WEBHOOK_URL secret not set — skipping Slack notification"
+          fi
 
   save-artifact:
     runs-on: ubuntu-latest

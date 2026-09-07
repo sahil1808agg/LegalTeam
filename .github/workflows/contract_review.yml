@@ -355,36 +355,37 @@ ISSUE_EOF
           echo "REVIEWS_COUNT=$(echo "$reviews" | jq 'length')" >> $GITHUB_ENV
           echo "FIRST_REVIEW=$(echo "$reviews" | jq -r '.[0].filename' 2>/dev/null || echo 'unknown')" >> $GITHUB_ENV
 
-      - name: Send to Slack (MCP integration point)
+      - name: Send to Slack via Webhook
+        if: env.SLACK_WEBHOOK_URL != ''
         env:
           REVIEWS_JSON: ${{ needs.contract-review.outputs.reviews_json }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          cat << 'EOF'
+          set -euo pipefail
 
-          🔔 MCP SLACK INTEGRATION
-          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          reviews=$(echo "$REVIEWS_JSON")
+          count=$(echo "$reviews" | jq 'length')
 
-          When Claude Code MCP is integrated with this workflow:
+          # Build Slack message
+          slack_json=$(echo "$reviews" | jq -r '.[] |
+            "• *\(.filename)* (\(.type)) — \(.completeness_pct)% complete\n" +
+            "  ├─ Flagged: \(.flagged) fields\n" +
+            "  └─ Deviations: \(.deviations)"' | paste -sd '\n' - | jq -R -s '{
+            text: ("🔍 Contract Review Summary — \($count) contracts processed"),
+            blocks: [{
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: ("📋 *Contract Review Results*\n\n" + .)
+              }
+            }]
+          }')
 
-          1. Use mcp__claude_ai_Slack__slack_send_message to post:
-             - Channel: #legal-contracts
-             - Message with contract review summaries
-             - Deviations count (HIGH/MED/LOW)
-             - Extraction completeness percentage
-             - Link to GitHub issues
-
-          2. Current output ready for Slack posting:
-          EOF
-
-          echo "$REVIEWS_JSON" | jq '.[] | {
-            channel: "#legal-contracts",
-            title: ("Contract Review: " + .filename),
-            type: .type,
-            completeness: (.completeness_pct | tostring + "%"),
-            deviations: .deviations,
-            github_issue: ("https://github.com/$GITHUB_REPOSITORY/issues/search?q=contract+review+" + .filename)
-          }' | jq -s '.'
-
-          echo ""
-          echo "✓ Slack notification structure ready"
-          EOF
+          # Post to Slack
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data "$slack_json" \
+              "$SLACK_WEBHOOK_URL" && echo "✓ Posted to Slack" || echo "✗ Slack post failed"
+          else
+            echo "⚠️  SLACK_WEBHOOK_URL secret not set — skipping Slack notification"
+          fi
