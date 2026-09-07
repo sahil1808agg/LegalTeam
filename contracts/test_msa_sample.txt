@@ -1,0 +1,81 @@
+# Data Processing Agreement
+
+## 1. Parties
+
+This Data Processing Agreement ("Agreement") is entered into as of September 7, 2026 ("Effective Date") by and between CloudSync Technologies, a UK limited company ("Data Processor"), and GlobalTech Solutions, a California corporation ("Data Controller").
+
+## 2. Scope of Data Processing
+
+The Processor shall process personal data on behalf of the Controller for the purpose of providing cloud storage and data management services as described in the Master Service Agreement dated August 1, 2026.
+
+## 3. Term and Termination
+
+This Agreement shall commence on the Effective Date and continue for two (2) years. Either party may terminate this Agreement with ninety (90) days written notice to the other party.
+
+## 4. Data Protection Obligations
+
+The Processor agrees to:
+(a) Process personal data only on documented instructions from the Controller
+(b) Ensure that authorized personnel have committed to confidentiality
+(c) Implement appropriate technical and organizational security measures
+(d) Ensure that sub-processors are bound by equivalent data protection obligations
+
+## 5. Data Categories and Subjects
+
+Personal data processed under this Agreement includes:
+- Employee contact information (names, email addresses, phone numbers)
+- Customer billing data (addresses, payment card information)
+- Application usage logs (IP addresses, timestamps)
+
+Data subjects are: employees, customers, and end-users of the Controller's platform.
+
+## 6. Processing Purpose
+
+Data is processed solely for the purpose of providing cloud storage, backup, and analytics services as outlined in the MSA.
+
+## 7. Sub-Processors
+
+The Processor may engage sub-processors only with prior written approval from the Controller. A current list of sub-processors is available at: https://cloudsync.example.com/subprocessors
+
+## 8. Data Subject Rights
+
+The Processor shall provide reasonable assistance to the Controller in fulfilling data subject requests (access, deletion, portability, etc.).
+
+## 9. Security Measures
+
+The Processor implements ISO 27001 certified security practices, including:
+- Encryption of data in transit (TLS 1.2+) and at rest (AES-256)
+- Regular security audits by third-party assessors
+- Incident response procedures with 24-hour notification requirement
+
+## 10. Return or Deletion of Data
+
+Upon termination or Controller request, the Processor shall delete or return all personal data processed under this Agreement within thirty (30) days.
+
+## 11. Audit Rights
+
+The Controller may audit the Processor's compliance with this Agreement upon reasonable notice. Annual independent SOC 2 Type II audits shall be made available to the Controller.
+
+## 12. Liability
+
+Each party's liability for breach of this Agreement shall not exceed the amounts paid by the Controller in the 12 months preceding the claim.
+
+## 13. Governing Law
+
+This Agreement shall be governed by the laws of the United Kingdom and the GDPR regulations.
+
+## 14. Entire Agreement
+
+This Agreement constitutes the complete understanding between the parties regarding data processing.
+
+---
+
+**CloudSync Technologies**
+
+By: _______________________
+Date: 2026-09-07
+
+**GlobalTech Solutions**
+
+By: _______________________
+Date: 2026-09-07
