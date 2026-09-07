@@ -261,47 +261,46 @@ jobs:
             liability_exposure=$(echo "$risk_data" | jq -r '.liability_exposure // ""' 2>/dev/null)
 
             # Build complete issue body
-            issue_body=$(cat <<'ISSUE_EOF'
-## 📋 Contract Details
-
-| Field | Value |
-|---|---|
-| **Filename** | FILENAME_PLACEHOLDER |
-| **Type** | TYPE_PLACEHOLDER |
-| **Extraction Completeness** | COMPLETENESS_PLACEHOLDER% (COMPLETENESS_RAW_PLACEHOLDER) |
-| **Flagged Fields** | FLAGGED_PLACEHOLDER |
-| **Deviations** | DEVIATIONS_PLACEHOLDER |
-
-## ⚠️ AI Risk Assessment
-
-**Overall Risk Rating:** RISK_RATING_PLACEHOLDER
-
-### Key Risks
-KEY_RISKS_PLACEHOLDER
-
-### Recommended Actions
-RECOMMENDED_ACTIONS_PLACEHOLDER
-
-### Liability Exposure
-LIABILITY_EXPOSURE_PLACEHOLDER
-
----
-
-## 📊 Extraction Results
-
-EXTRACTION_TABLE_PLACEHOLDER
-
-## 🔄 Deviation Analysis
-
-DEVIATION_SECTION_PLACEHOLDER
-
----
-
-**Generated:** $(date -u +%Y-%m-%dT%H:%M:%SZ)
-**Pipeline:** [Contract Review Workflow]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)
-**Analysis:** Claude AI (claude-sonnet-5)
-ISSUE_EOF
-            )
+            issue_body=$(printf '%s\n' \
+              "## 📋 Contract Details" \
+              "" \
+              "Filename: FILENAME_PLACEHOLDER" \
+              "Type: TYPE_PLACEHOLDER" \
+              "Extraction Completeness: COMPLETENESS_PLACEHOLDER% (COMPLETENESS_RAW_PLACEHOLDER)" \
+              "Flagged Fields: FLAGGED_PLACEHOLDER" \
+              "Deviations: DEVIATIONS_PLACEHOLDER" \
+              "" \
+              "## ⚠️ AI Risk Assessment" \
+              "" \
+              "Overall Risk Rating: RISK_RATING_PLACEHOLDER" \
+              "" \
+              "### Key Risks" \
+              "" \
+              "KEY_RISKS_PLACEHOLDER" \
+              "" \
+              "### Recommended Actions" \
+              "" \
+              "RECOMMENDED_ACTIONS_PLACEHOLDER" \
+              "" \
+              "### Liability Exposure" \
+              "" \
+              "LIABILITY_EXPOSURE_PLACEHOLDER" \
+              "" \
+              "---" \
+              "" \
+              "## 📊 Extraction Results" \
+              "" \
+              "EXTRACTION_TABLE_PLACEHOLDER" \
+              "" \
+              "## 🔄 Deviation Analysis" \
+              "" \
+              "DEVIATION_SECTION_PLACEHOLDER" \
+              "" \
+              "---" \
+              "" \
+              "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              "Pipeline: [Contract Review Workflow]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)" \
+              "Analysis: Claude AI (claude-sonnet-5)")
 
             # Replace placeholders
             issue_body="${issue_body//FILENAME_PLACEHOLDER/$filename}"
