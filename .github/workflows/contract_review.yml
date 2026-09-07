@@ -112,7 +112,7 @@ jobs:
 
             # Run extraction
             echo "→ Running hotspot extraction..."
-            if ! bash extraction/extract.sh "$extract_input" >/dev/null 2>&1; then
+            if ! bash extraction/extract.sh "$extract_input"; then
               echo "✗ Extraction failed"
               continue
             fi
