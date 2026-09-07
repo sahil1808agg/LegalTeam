@@ -1,0 +1,365 @@
+name: Daily Renewal Deadlines
+
+on:
+  schedule:
+    # 9am PT = 4pm UTC (16:00 UTC)
+    - cron: '0 16 * * *'
+  workflow_dispatch:  # Allow manual trigger for testing
+
+permissions:
+  contents: read
+
+jobs:
+  check-renewals:
+    runs-on: ubuntu-latest
+    outputs:
+      digest_json: ${{ steps.check.outputs.digest_json }}
+      contracts_count: ${{ steps.check.outputs.contracts_count }}
+      urgent_count: ${{ steps.check.outputs.urgent_count }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y jq 2>&1 | grep -v "^Reading"
+          command -v jq >/dev/null || { echo "jq installation failed"; exit 1; }
+
+      - name: Check renewal deadlines
+        id: check
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          echo "→ Scanning contracts for renewal deadlines in next 90 days..."
+
+          # Make script executable
+          chmod +x obligations/check_deadlines.sh
+
+          # Run deadline check
+          if ! deadlines_json=$(bash obligations/check_deadlines.sh --days 90 --output json 2>/dev/null); then
+            echo "✗ Failed to check deadlines"
+            echo "digest_json=[]" >> $GITHUB_OUTPUT
+            echo "contracts_count=0" >> $GITHUB_OUTPUT
+            echo "urgent_count=0" >> $GITHUB_OUTPUT
+            echo "analysis_json={}" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          # Parse results
+          contracts_count=$(echo "$deadlines_json" | jq 'length')
+          urgent_count=$(echo "$deadlines_json" | jq '[.[] | select(.risk_level == "CRITICAL" or .risk_level == "URGENT")] | length')
+
+          echo "✓ Found $contracts_count contracts with deadlines in next 90 days"
+          echo "✓ Urgent/Critical: $urgent_count"
+
+          # Analyze with Claude if there are contracts due
+          analysis_json="{}"
+          if [ "$contracts_count" -gt 0 ]; then
+            echo "→ AI Analysis of renewal deadlines..."
+
+            analysis_prompt="Analyze this JSON array of contract renewal deadlines. Provide a JSON response with: 1) summary (brief overview), 2) critical_actions (array of immediate actions for CRITICAL items), 3) risk_patterns (any recurring risks or patterns), 4) recommended_process_improvements (how to avoid future deadline misses), 5) priority_focus (which items need immediate attention). Keep responses concise and actionable."
+
+            analysis_result=$(echo "$deadlines_json" | \
+              claude -p "$analysis_prompt" --output-format json 2>/dev/null || echo "{}")
+
+            # Extract result from JSON envelope
+            if echo "$analysis_result" | jq . >/dev/null 2>&1; then
+              analysis_json=$(echo "$analysis_result" | jq -r '.result // empty' | jq . 2>/dev/null || echo "{}")
+            fi
+          fi
+
+          # Build digest
+          digest_json="$deadlines_json"
+
+          # Output for next steps
+          echo "digest_json<<EOF" >> $GITHUB_OUTPUT
+          echo "$digest_json" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "analysis_json<<EOF" >> $GITHUB_OUTPUT
+          echo "$analysis_json" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "contracts_count=$contracts_count" >> $GITHUB_OUTPUT
+          echo "urgent_count=$urgent_count" >> $GITHUB_OUTPUT
+
+          # Also save to file for debugging
+          echo "$digest_json" | jq '.' > /tmp/renewals_digest.json
+          echo "$analysis_json" | jq '.' > /tmp/renewals_analysis.json
+
+      - name: Generate Markdown summary
+        id: markdown
+        env:
+          DIGEST: ${{ steps.check.outputs.digest_json }}
+          ANALYSIS: ${{ steps.check.outputs.analysis_json }}
+        run: |
+          set -euo pipefail
+
+          digest=$(echo "$DIGEST")
+          count=$(echo "$digest" | jq 'length')
+
+          if [ "$count" -eq 0 ]; then
+            summary=$(cat <<'EOF'
+# ✅ Renewal Deadline Check
+
+**Status:** No renewal deadlines in the next 90 days
+**Checked:** $(date -u +%Y-%m-%d\ %H:%M:%SZ)
+
+All contracts are on track!
+EOF
+            )
+          else
+            digest=$(echo "$DIGEST")
+            analysis=$(echo "$ANALYSIS")
+
+            # Build detailed summary
+            summary=$(cat <<'EOF'
+# 🔔 Renewal Deadline Digest
+
+**Report Date:** $(date -u +%Y-%m-%d\ %H:%M:%SZ)
+**Contracts Due:** $(echo "$digest" | jq 'length')
+**Critical/Urgent:** $(echo "$digest" | jq '[.[] | select(.risk_level == "CRITICAL" or .risk_level == "URGENT")] | length')
+
+## 🤖 AI Analysis Summary
+
+EOF
+
+            # Add Claude's analysis
+            summary_text=$(echo "$analysis" | jq -r '.summary // ""' 2>/dev/null)
+            if [ -n "$summary_text" ]; then
+              echo "$summary_text" >> /tmp/summary.md
+            fi
+
+            critical_actions=$(echo "$analysis" | jq -r '.critical_actions[]? // empty' 2>/dev/null | sed 's/^/- /')
+            if [ -n "$critical_actions" ]; then
+              echo "" >> /tmp/summary.md
+              echo "### Critical Actions Required" >> /tmp/summary.md
+              echo "$critical_actions" >> /tmp/summary.md
+            fi
+
+            priority_focus=$(echo "$analysis" | jq -r '.priority_focus // ""' 2>/dev/null)
+            if [ -n "$priority_focus" ]; then
+              echo "" >> /tmp/summary.md
+              echo "### Priority Focus" >> /tmp/summary.md
+              echo "$priority_focus" >> /tmp/summary.md
+            fi
+
+            echo "" >> /tmp/summary.md
+            echo "## 📋 Upcoming Deadlines" >> /tmp/summary.md
+            echo "" >> /tmp/summary.md
+            cat >> /tmp/summary.md <<'EOF'
+| Counterparty | Type | Deadline | Days Left | Risk | Action |
+|---|---|---|---|---|---|
+EOF
+
+            # Add each contract row
+            echo "$digest" | jq -r '.[] | "| \(.counterparty) | \(.contract_type) | \(.renewal_notice_deadline) | \(.days_until_deadline) | \(.risk_level) | \(.action) |"' >> /tmp/summary.md
+
+            # Add critical/urgent items section
+            cat >> /tmp/summary.md <<'EOF'
+
+## 🚨 Critical/Urgent Items
+
+EOF
+
+            # List critical/urgent items
+            echo "$digest" | jq -r '.[] | select(.risk_level == "CRITICAL" or .risk_level == "URGENT") | "- **\(.counterparty)** (\(.contract_type)): Notice due **\(.renewal_notice_deadline)** (in \(.days_until_deadline) days)"' >> /tmp/summary.md
+
+            # Add auto-renewal note
+            auto_renew_count=$(echo "$digest" | jq '[.[] | select(.auto_renewal == true)] | length')
+            if [ "$auto_renew_count" -gt 0 ]; then
+              echo "" >> /tmp/summary.md
+              echo "## 🔄 Auto-Renewal Alert" >> /tmp/summary.md
+              echo "" >> /tmp/summary.md
+              echo "The following contracts **auto-renew** — ensure notices are filed if you do not want renewal:" >> /tmp/summary.md
+              echo "$digest" | jq -r '.[] | select(.auto_renewal == true) | "- \(.counterparty) — \(.renewal_notice_deadline)"' >> /tmp/summary.md
+            fi
+
+            # Add process improvement suggestions
+            improvements=$(echo "$analysis" | jq -r '.recommended_process_improvements[]? // empty' 2>/dev/null | sed 's/^/- /')
+            if [ -n "$improvements" ]; then
+              echo "" >> /tmp/summary.md
+              echo "## 💡 Process Improvements" >> /tmp/summary.md
+              echo "$improvements" >> /tmp/summary.md
+            fi
+
+            cat /tmp/summary.md > /tmp/full_summary.md
+          fi
+
+          echo "summary<<EOF" >> $GITHUB_OUTPUT
+          cat /tmp/full_summary.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Output digest
+        env:
+          MARKDOWN: ${{ steps.markdown.outputs.summary }}
+          COUNT: ${{ steps.check.outputs.contracts_count }}
+          URGENT: ${{ steps.check.outputs.urgent_count }}
+        run: |
+          echo "📊 Daily Renewal Digest"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "$MARKDOWN"
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Total contracts scanned: (from extraction/output/)"
+          echo "Deadlines in next 90 days: $COUNT"
+          echo "Critical/Urgent items: $URGENT"
+
+  notify-slack:
+    runs-on: ubuntu-latest
+    needs: check-renewals
+    if: always()
+    steps:
+      - name: Prepare Slack notification
+        id: prepare
+        env:
+          DIGEST_JSON: ${{ needs.check-renewals.outputs.digest_json }}
+          ANALYSIS_JSON: ${{ needs.check-renewals.outputs.analysis_json }}
+          COUNT: ${{ needs.check-renewals.outputs.contracts_count }}
+          URGENT: ${{ needs.check-renewals.outputs.urgent_count }}
+        run: |
+          set -euo pipefail
+
+          digest=$(echo "$DIGEST_JSON")
+          analysis=$(echo "$ANALYSIS_JSON")
+
+          echo "🔔 Preparing Slack notification..."
+          echo "Contracts due: $COUNT | Urgent: $URGENT"
+
+          # Build Slack message blocks
+          if [ "$COUNT" -eq 0 ]; then
+            # All clear message
+            slack_message=$(jq -n \
+              --arg status "✅ No renewal deadlines in next 90 days" \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              '{
+                channel: "#legal-contracts",
+                icon_emoji: ":calendar:",
+                username: "ContractIQ Renewals",
+                text: $status,
+                attachments: [{
+                  color: "good",
+                  text: "All contracts are on track. Check back tomorrow."
+                }]
+              }')
+          else
+            # Build detailed blocks with contract list and analysis
+            critical_urgent=$(echo "$digest" | jq '[.[] | select(.risk_level == "CRITICAL" or .risk_level == "URGENT")] | length')
+
+            # Extract analysis fields
+            ai_summary=$(echo "$analysis" | jq -r '.summary // ""' 2>/dev/null)
+            priority_focus=$(echo "$analysis" | jq -r '.priority_focus // ""' 2>/dev/null)
+
+            slack_message=$(jq -n \
+              --arg count "$COUNT" \
+              --arg urgent "$URGENT" \
+              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --arg ai_summary "$ai_summary" \
+              --arg priority_focus "$priority_focus" \
+              --argjson digest "$(echo "$digest")" \
+              '{
+                channel: "#legal-contracts",
+                icon_emoji: ":bell:",
+                username: "ContractIQ Renewals",
+                text: ("🔔 Renewal Deadlines — " + $count + " contracts due in next 90 days"),
+                attachments: [
+                  {
+                    color: (if ($urgent | tonumber) > 0 then "danger" else "warning" end),
+                    title: "🤖 AI Analysis",
+                    text: $ai_summary,
+                    short: false
+                  },
+                  {
+                    color: (if ($urgent | tonumber) > 0 then "danger" else "warning" end),
+                    title: "Renewal Notice Deadlines",
+                    text: ("Critical/Urgent: " + $urgent + " | Total: " + $count),
+                    fields: [
+                      {
+                        title: "Critical (Due ≤14 days)",
+                        value: ($digest | map(select(.risk_level == "CRITICAL")) | map("• \(.counterparty) (\(.contract_type)): \(.renewal_notice_deadline)") | join("\n") // "None — all clear"),
+                        short: false
+                      },
+                      {
+                        title: "Urgent (Due 15-30 days)",
+                        value: ($digest | map(select(.risk_level == "URGENT")) | map("• \(.counterparty): \(.renewal_notice_deadline)") | join("\n") // "None"),
+                        short: false
+                      },
+                      {
+                        title: "Auto-Renewing Contracts",
+                        value: ($digest | map(select(.auto_renewal == true)) | map("• \(.counterparty) — renews unless notice filed by \(.renewal_notice_deadline)") | join("\n") // "None"),
+                        short: false
+                      },
+                      {
+                        title: "⚡ Priority Focus",
+                        value: $priority_focus,
+                        short: false
+                      }
+                    ],
+                    footer: "Daily scan of all extracted contracts",
+                    ts: ($timestamp | fromdateiso8601)
+                  }
+                ]
+              }')
+          fi
+
+          echo "slack_message<<EOF" >> $GITHUB_OUTPUT
+          echo "$slack_message" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Post to Slack (MCP integration point)
+        id: slack
+        env:
+          SLACK_MESSAGE: ${{ steps.prepare.outputs.slack_message }}
+        run: |
+          cat << 'EOF'
+
+          📨 MCP SLACK INTEGRATION
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+          When Claude Code MCP is integrated with this workflow:
+
+          1. Use mcp__claude_ai_Slack__slack_send_message to post:
+             - Channel: #legal-contracts
+             - Message payload prepared below
+             - Formatted with contract details
+             - Color-coded by risk level
+
+          2. Fallback: Use GitHub API to create workflow artifact
+
+          3. Current payload ready for Slack:
+          EOF
+
+          echo ""
+          echo "$SLACK_MESSAGE" | jq '.'
+
+          echo ""
+          echo "✓ Slack notification structure ready"
+          echo ""
+          echo "Alternative: Set SLACK_WEBHOOK_URL secret to use curl:"
+          echo "  curl -X POST -H 'Content-type: application/json' \\"
+          echo "    --data '@slack_payload.json' \\"
+          echo "    \$SLACK_WEBHOOK_URL"
+          EOF
+
+  save-artifact:
+    runs-on: ubuntu-latest
+    needs: check-renewals
+    if: always()
+    steps:
+      - name: Save renewal digest as artifact
+        env:
+          DIGEST: ${{ needs.check-renewals.outputs.digest_json }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p renewal-reports
+          echo "$DIGEST" | jq '.' > renewal-reports/renewals_$(date +%Y-%m-%d).json
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: renewal-digest-${{ github.run_id }}
+          path: renewal-reports/
+          retention-days: 30

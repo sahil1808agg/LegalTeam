@@ -1,0 +1,390 @@
+name: Contract Review Pipeline
+
+on:
+  push:
+    paths:
+      - 'contracts/**'
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  contract-review:
+    runs-on: ubuntu-latest
+    outputs:
+      contracts_processed: ${{ steps.detect.outputs.count }}
+      reviews_json: ${{ steps.process.outputs.reviews_json }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Claude Code CLI
+        run: |
+          curl -sSL https://claude.ai/install.sh | bash
+          if ! command -v claude &> /dev/null; then
+            echo "Claude CLI installation failed"
+            exit 1
+          fi
+          claude --version
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y jq pdftotext 2>&1 | grep -v "^Reading"
+          command -v jq >/dev/null || { echo "jq installation failed"; exit 1; }
+
+      - name: Detect new contracts
+        id: detect
+        run: |
+          set +e
+
+          # Get list of new/modified files in contracts/ directory
+          if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            # Initial push - treat all files as new
+            NEW_FILES=$(find contracts -type f \( -name "*.txt" -o -name "*.pdf" \) 2>/dev/null | sort)
+          else
+            # Subsequent pushes - only diff changes
+            NEW_FILES=$(git diff --name-only --diff-filter=A "${{ github.event.before }}..HEAD" -- contracts 2>/dev/null | grep -E '\.(txt|pdf)$' || true)
+          fi
+
+          set -e
+
+          if [ -z "$NEW_FILES" ]; then
+            echo "count=0" >> $GITHUB_OUTPUT
+            echo "✓ No new contracts detected"
+          else
+            file_count=$(echo "$NEW_FILES" | wc -l)
+            echo "count=$file_count" >> $GITHUB_OUTPUT
+            echo "$NEW_FILES" > /tmp/new_contracts.txt
+            echo "✓ Detected $file_count new contract(s):"
+            cat /tmp/new_contracts.txt
+          fi
+
+      - name: Process contracts
+        id: process
+        if: steps.detect.outputs.count != '0'
+        run: |
+          set -euo pipefail
+
+          mkdir -p extraction/output redlining/output
+
+          # Initialize reviews array
+          declare -a reviews_array
+          reviews_index=0
+
+          while IFS= read -r contract_file; do
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "Processing: $contract_file"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            [ -f "$contract_file" ] || { echo "✗ File not found"; continue; }
+
+            filename=$(basename "$contract_file")
+            stem="${filename%.*}"
+            extract_input="$contract_file"
+
+            # Handle PDF files - chunk first
+            if [[ "$contract_file" == *.pdf ]]; then
+              echo "→ Chunking PDF..."
+              if ! bash contracts/chunker.sh "$contract_file" "/tmp/chunks_$stem" >/dev/null 2>&1; then
+                echo "✗ PDF chunking failed"
+                continue
+              fi
+
+              first_chunk=$(ls /tmp/chunks_$stem/*.txt 2>/dev/null | head -1)
+              if [ -z "$first_chunk" ]; then
+                echo "✗ No text chunks generated"
+                continue
+              fi
+              extract_input="$first_chunk"
+            fi
+
+            # Run extraction
+            echo "→ Running hotspot extraction..."
+            if ! bash extraction/extract.sh "$extract_input" >/dev/null 2>&1; then
+              echo "✗ Extraction failed"
+              continue
+            fi
+
+            extraction_json="extraction/output/${stem}_extracted.json"
+            if [ ! -f "$extraction_json" ]; then
+              echo "✗ Extraction output not found"
+              continue
+            fi
+
+            # Parse extraction results
+            extracted_count=$(jq '[.[] | select(.value != null)] | length' "$extraction_json")
+            total_fields=22
+            completeness_pct=$((extracted_count * 100 / total_fields))
+            flagged_count=$(jq '[.[] | select(.flag != null)] | length' "$extraction_json")
+            contract_type=$(jq -r '.contract_type.value // "UNKNOWN"' "$extraction_json")
+
+            echo "✓ Extraction: $extracted_count/$total_fields fields ($completeness_pct%)"
+            echo "✓ Flagged: $flagged_count fields"
+            echo "✓ Type: $contract_type"
+
+            # Run redline comparison for text contracts
+            deviation_summary="N/A (PDF)"
+            risk_assessment=""
+            if [[ "$contract_file" == *.txt ]]; then
+              echo "→ Running redline comparison..."
+
+              # Select playbook
+              playbook="redlining/playbooks/msa_playbook.md"
+              case "$contract_type" in
+                NDA) playbook="redlining/playbooks/nda_playbook.md" ;;
+              esac
+
+              if [ -f "$playbook" ]; then
+                if bash redlining/redline.sh --incoming "$contract_file" --playbook "$playbook" >/dev/null 2>&1; then
+                  redline_report="redlining/output/$(date +%Y-%m-%d)_redline_report_${stem}.md"
+
+                  if [ -f "$redline_report" ]; then
+                    if grep -q "Deviation counts:" "$redline_report" 2>/dev/null; then
+                      deviation_summary=$(grep "Deviation counts:" "$redline_report" | sed 's/^- //')
+                    else
+                      high=$(grep -o "HIGH:" "$redline_report" 2>/dev/null | wc -l)
+                      med=$(grep -o "MED:" "$redline_report" 2>/dev/null | wc -l)
+                      low=$(grep -o "LOW:" "$redline_report" 2>/dev/null | wc -l)
+                      deviation_summary="HIGH: $high, MED: $med, LOW: $low"
+                    fi
+                    echo "✓ Deviations: $deviation_summary"
+
+                    # Analyze with Claude
+                    echo "→ AI Risk Assessment..."
+                    analysis_prompt="Analyze this contract review report and extraction data. Provide a JSON response with: 1) overall_risk_rating (LOW/MEDIUM/HIGH/CRITICAL), 2) key_risks (array of top 3 concerns), 3) recommended_actions (array of next steps), 4) liability_exposure (brief summary), 5) escalation_required (boolean). Be concise and focus on material risks."
+
+                    analysis_result=$(cat "$redline_report" <(echo "---EXTRACTION DATA---") <(jq '.' "$extraction_json") | \
+                      claude -p "$analysis_prompt" --output-format json 2>/dev/null || echo "{}")
+
+                    # Extract result from JSON envelope
+                    if echo "$analysis_result" | jq . >/dev/null 2>&1; then
+                      risk_assessment=$(echo "$analysis_result" | jq -r '.result // empty' | jq . 2>/dev/null || echo "{}")
+                      risk_rating=$(echo "$risk_assessment" | jq -r '.overall_risk_rating // "UNKNOWN"' 2>/dev/null)
+                      echo "✓ Risk Assessment: $risk_rating"
+                    fi
+                  fi
+                fi
+              fi
+            fi
+
+            # Store review data
+            risk_assessment_json=$(echo "$risk_assessment" | jq . 2>/dev/null || echo "{}")
+            review_json=$(jq -cn \
+              --arg filename "$filename" \
+              --arg stem "$stem" \
+              --arg completeness "$extracted_count/$total_fields" \
+              --arg completeness_pct "$completeness_pct" \
+              --arg flagged "$flagged_count" \
+              --arg deviations "$deviation_summary" \
+              --arg type "$contract_type" \
+              --argjson risk_assessment "$risk_assessment_json" \
+              '{filename: $filename, stem: $stem, completeness: $completeness, completeness_pct: $completeness_pct | tonumber, flagged: $flagged | tonumber, deviations: $deviations, type: $type, risk_assessment: $risk_assessment}')
+
+            reviews_array[$reviews_index]="$review_json"
+            ((reviews_index++))
+
+          done < /tmp/new_contracts.txt
+
+          # Output reviews as JSON array
+          reviews_json=$(jq -n "$(printf '%s\n' "${reviews_array[@]}" | jq -s '.')")
+          echo "reviews_json<<EOF" >> $GITHUB_OUTPUT
+          echo "$reviews_json" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo ""
+          echo "✓ Processed $reviews_index contract(s)"
+
+      - name: Create GitHub issues
+        if: steps.detect.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REVIEWS_JSON: ${{ steps.process.outputs.reviews_json }}
+        run: |
+          set -euo pipefail
+
+          reviews=$(echo "$REVIEWS_JSON")
+
+          echo "$reviews" | jq -r '.[] | .stem' | while read -r stem; do
+            echo "→ Creating issue for: $stem"
+
+            extraction_json="extraction/output/${stem}_extracted.json"
+            [ -f "$extraction_json" ] || { echo "✗ Extraction JSON not found"; continue; }
+
+            # Get metadata
+            metadata=$(echo "$reviews" | jq ".[] | select(.stem == \"$stem\")")
+            filename=$(echo "$metadata" | jq -r '.filename')
+            type=$(echo "$metadata" | jq -r '.type')
+            completeness=$(echo "$metadata" | jq -r '.completeness')
+            completeness_pct=$(echo "$metadata" | jq -r '.completeness_pct')
+            flagged=$(echo "$metadata" | jq -r '.flagged')
+            deviations=$(echo "$metadata" | jq -r '.deviations')
+
+            # Build extraction table
+            extraction_table=$(jq -r '
+              "| Field | Value | Citation | Flag |\n" +
+              "|---|---|---|---|\n" +
+              (to_entries | map(
+                "| " + .key + " | " +
+                (if .value.value == null then "_null_" else (.value.value | gsub("[|`]"; ""; "g") | .[0:50]) end) + " | " +
+                (if .value.citation == null then "" else (.value.citation.paragraph_number // "") end) + " | " +
+                (if .value.flag == null then "✓" else (.value.flag.type // "flagged") end) + " |"
+              ) | join("\n"))
+            ' "$extraction_json")
+
+            # Get redline table if exists
+            redline_report="redlining/output/$(date +%Y-%m-%d)_redline_report_${stem}.md"
+            deviation_section=""
+            if [ -f "$redline_report" ]; then
+              deviation_section=$(sed -n '/^| # | Clause/,/^## Summary/p' "$redline_report" 2>/dev/null | head -n -1)
+              if [ -z "$deviation_section" ]; then
+                deviation_section="*No deviation table found in redline report*"
+              fi
+            else
+              deviation_section="_Redline comparison not applicable (PDF contract)_"
+            fi
+
+            # Get risk assessment data
+            risk_data=$(echo "$reviews" | jq ".[] | select(.stem == \"$stem\") | .risk_assessment" 2>/dev/null || echo "{}")
+            risk_rating=$(echo "$risk_data" | jq -r '.overall_risk_rating // "UNKNOWN"' 2>/dev/null)
+            key_risks=$(echo "$risk_data" | jq -r '.key_risks[]? // empty' 2>/dev/null | sed 's/^/- /')
+            recommended_actions=$(echo "$risk_data" | jq -r '.recommended_actions[]? // empty' 2>/dev/null | sed 's/^/- /')
+            liability_exposure=$(echo "$risk_data" | jq -r '.liability_exposure // ""' 2>/dev/null)
+
+            # Build complete issue body
+            issue_body=$(cat <<'ISSUE_EOF'
+## 📋 Contract Details
+
+| Field | Value |
+|---|---|
+| **Filename** | FILENAME_PLACEHOLDER |
+| **Type** | TYPE_PLACEHOLDER |
+| **Extraction Completeness** | COMPLETENESS_PLACEHOLDER% (COMPLETENESS_RAW_PLACEHOLDER) |
+| **Flagged Fields** | FLAGGED_PLACEHOLDER |
+| **Deviations** | DEVIATIONS_PLACEHOLDER |
+
+## ⚠️ AI Risk Assessment
+
+**Overall Risk Rating:** RISK_RATING_PLACEHOLDER
+
+### Key Risks
+KEY_RISKS_PLACEHOLDER
+
+### Recommended Actions
+RECOMMENDED_ACTIONS_PLACEHOLDER
+
+### Liability Exposure
+LIABILITY_EXPOSURE_PLACEHOLDER
+
+---
+
+## 📊 Extraction Results
+
+EXTRACTION_TABLE_PLACEHOLDER
+
+## 🔄 Deviation Analysis
+
+DEVIATION_SECTION_PLACEHOLDER
+
+---
+
+**Generated:** $(date -u +%Y-%m-%dT%H:%M:%SZ)
+**Pipeline:** [Contract Review Workflow]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)
+**Analysis:** Claude AI (claude-sonnet-5)
+ISSUE_EOF
+            )
+
+            # Replace placeholders
+            issue_body="${issue_body//FILENAME_PLACEHOLDER/$filename}"
+            issue_body="${issue_body//TYPE_PLACEHOLDER/$type}"
+            issue_body="${issue_body//COMPLETENESS_PLACEHOLDER/$completeness_pct}"
+            issue_body="${issue_body//COMPLETENESS_RAW_PLACEHOLDER/$completeness}"
+            issue_body="${issue_body//FLAGGED_PLACEHOLDER/$flagged}"
+            issue_body="${issue_body//DEVIATIONS_PLACEHOLDER/$deviations}"
+            issue_body="${issue_body//RISK_RATING_PLACEHOLDER/$risk_rating}"
+            issue_body="${issue_body//KEY_RISKS_PLACEHOLDER/${key_risks:-None identified}}"
+            issue_body="${issue_body//RECOMMENDED_ACTIONS_PLACEHOLDER/${recommended_actions:-Standard review recommended}}"
+            issue_body="${issue_body//LIABILITY_EXPOSURE_PLACEHOLDER/${liability_exposure:-See deviation analysis}}"
+            issue_body="${issue_body//EXTRACTION_TABLE_PLACEHOLDER/$extraction_table}"
+            issue_body="${issue_body//DEVIATION_SECTION_PLACEHOLDER/$deviation_section}"
+
+            # Create issue
+            gh issue create \
+              --title "Contract Review: $filename" \
+              --body "$issue_body" \
+              --label "contract-review" \
+              --label "$type" \
+              2>&1 | tee /tmp/issue_${stem}.log || true
+
+            echo "✓ Issue created"
+          done
+
+          echo ""
+          echo "✓ All issues created"
+
+  notify-slack:
+    runs-on: ubuntu-latest
+    needs: contract-review
+    if: needs.contract-review.outputs.contracts_processed != '0'
+    steps:
+      - name: Prepare Slack notification
+        env:
+          REVIEWS_JSON: ${{ needs.contract-review.outputs.reviews_json }}
+        run: |
+          set -euo pipefail
+
+          reviews=$(echo "$REVIEWS_JSON")
+
+          echo "📋 Contract Review Summary"
+          echo ""
+          echo "$reviews" | jq -r '.[] | "• **\(.filename)** (\(.type))\n  └─ Extraction: \(.completeness) | Flagged: \(.flagged) | Deviations: \(.deviations)"'
+
+          echo ""
+          echo "✓ Slack message payload prepared (would be sent via MCP)"
+
+          # Output for Slack MCP integration
+          echo "REVIEWS_COUNT=$(echo "$reviews" | jq 'length')" >> $GITHUB_ENV
+          echo "FIRST_REVIEW=$(echo "$reviews" | jq -r '.[0].filename' 2>/dev/null || echo 'unknown')" >> $GITHUB_ENV
+
+      - name: Send to Slack (MCP integration point)
+        env:
+          REVIEWS_JSON: ${{ needs.contract-review.outputs.reviews_json }}
+        run: |
+          cat << 'EOF'
+
+          🔔 MCP SLACK INTEGRATION
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+          When Claude Code MCP is integrated with this workflow:
+
+          1. Use mcp__claude_ai_Slack__slack_send_message to post:
+             - Channel: #legal-contracts
+             - Message with contract review summaries
+             - Deviations count (HIGH/MED/LOW)
+             - Extraction completeness percentage
+             - Link to GitHub issues
+
+          2. Current output ready for Slack posting:
+          EOF
+
+          echo "$REVIEWS_JSON" | jq '.[] | {
+            channel: "#legal-contracts",
+            title: ("Contract Review: " + .filename),
+            type: .type,
+            completeness: (.completeness_pct | tostring + "%"),
+            deviations: .deviations,
+            github_issue: ("https://github.com/$GITHUB_REPOSITORY/issues/search?q=contract+review+" + .filename)
+          }' | jq -s '.'
+
+          echo ""
+          echo "✓ Slack notification structure ready"
+          EOF
