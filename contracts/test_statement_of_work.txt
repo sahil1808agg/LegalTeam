@@ -1,0 +1,79 @@
+# Statement of Work
+
+## 1. Overview
+
+This Statement of Work ("SOW") is entered into as of September 7, 2026 by and between Acme Consulting LLC ("Vendor") and Design Studio Inc. ("Client"), pursuant to the Master Service Agreement dated January 15, 2026.
+
+## 2. Scope of Services
+
+Vendor shall provide the following services:
+- UI/UX design for mobile application redesign (40 hours)
+- Creation of high-fidelity mockups and prototypes (30 hours)
+- User research and testing (20 hours)
+- Design system documentation (10 hours)
+
+Total estimated effort: 100 hours
+
+## 3. Deliverables
+
+1. Research findings report (by October 15, 2026)
+2. Low-fidelity wireframes (by October 25, 2026)
+3. High-fidelity mockups (by November 15, 2026)
+4. Interactive prototype (by November 30, 2026)
+5. Design system guide and assets (by December 15, 2026)
+
+## 4. Project Timeline
+
+Project start: September 15, 2026
+Project end: December 15, 2026
+Estimated duration: 13 weeks
+
+## 5. Compensation
+
+Total project fee: $15,000 USD
+
+Payment schedule:
+- 50% ($7,500) upon execution of SOW
+- 50% ($7,500) upon final deliverable acceptance
+
+Payment terms: Net 30 from invoice date
+
+## 6. Approval Process
+
+Client shall review each deliverable within 5 business days. Feedback shall be provided in writing. Vendor shall implement requested revisions within 3 business days.
+
+## 7. Change Orders
+
+Any scope changes must be documented in a written change order signed by both parties. Additional work beyond the scope listed above will be billed at $150/hour.
+
+## 8. Acceptance Criteria
+
+Deliverables are considered accepted when Client provides written sign-off or does not provide feedback within 5 business days of delivery.
+
+## 9. Confidentiality
+
+All deliverables and work products are the property of Client. Vendor shall maintain confidentiality of all Client information for 3 years following project completion.
+
+## 10. Termination
+
+Client may terminate this SOW with 5 business days written notice. If terminated, Vendor shall invoice Client for all work completed through the termination date on a time-and-materials basis.
+
+## 11. Limitation of Liability
+
+Neither party's liability shall exceed the total fees paid under this SOW ($15,000).
+
+## 12. Governing Law
+
+This SOW shall be governed by the laws of California.
+
+---
+
+**Acme Consulting LLC**
+
+By: _______________________
+Date: 2026-09-07
+
+**Design Studio Inc.**
+
+By: _______________________
+Date: 2026-09-07
