@@ -2,9 +2,8 @@ name: Daily Renewal Deadlines
 
 on:
   schedule:
-    # 9am PT = 4pm UTC (16:00 UTC)
     - cron: '0 16 * * *'
-  workflow_dispatch:  # Allow manual trigger for testing
+  workflow_dispatch:
 
 permissions:
   contents: read
