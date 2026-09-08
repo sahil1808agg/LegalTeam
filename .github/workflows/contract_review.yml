@@ -68,14 +68,13 @@ jobs:
             cat /tmp/new_contracts.txt
           fi
 
-      - name: Trust workspace for Claude CLI
+      - name: Disable Claude Code settings for CI/CD
         if: steps.detect.outputs.count != '0'
         run: |
           mkdir -p ~/.claude
-          REPO_PATH=$(pwd)
-          jq -n --arg repoPath "$REPO_PATH" '{projects: {($repoPath): {hasTrustDialogAccepted: true}}}' > ~/.claude/claude.json
-          echo "Trusted repository path: $REPO_PATH"
-          cat ~/.claude/claude.json
+          # Move settings.json to disable it in CI/CD environment
+          mv .claude/settings.json .claude/settings.json.bak || true
+          echo "Disabled project settings for CI/CD environment"
 
       - name: Process contracts
         id: process
