@@ -1,0 +1,35 @@
+TEST SERVICE AGREEMENT
+
+This Service Agreement ("Agreement") is entered into as of September 15, 2026 (Effective Date), between TechCorp Inc. ("Provider") and ClientCo LLC ("Client").
+
+TERM AND RENEWAL
+
+The initial term of this Agreement shall be for a period of 3 years from the Effective Date. Unless either party provides written notice of non-renewal at least 90 days prior to the expiration of the then-current term, this Agreement shall automatically renew for successive one-year periods.
+
+PAYMENT TERMS
+
+Client shall pay Provider a monthly service fee of $10,000 USD, due within 30 days of invoice (Net 30). Late payments shall accrue interest at 1.5% per month or the maximum rate permitted by law, whichever is lesser.
+
+LIABILITY
+
+Except for indemnification obligations and confidentiality obligations, each party's total aggregate liability under this Agreement shall not exceed the total fees paid in the 12 months preceding the claim.
+
+CONFIDENTIALITY
+
+All confidential information disclosed by either party shall remain confidential for a period of 5 years after termination of this Agreement.
+
+GOVERNING LAW
+
+This Agreement shall be governed by the laws of California, with exclusive jurisdiction in the courts of San Francisco County.
+
+TERMINATION
+
+Either party may terminate this Agreement with 60 days' written notice. Termination for cause may be effected with 30 days' written notice of a material breach if not cured within such period.
+
+ASSIGNMENT
+
+Neither party may assign this Agreement without the prior written consent of the other party, except that Provider may assign to a successor entity in connection with a merger, acquisition, or sale of substantially all assets.
+
+SERVICES
+
+Provider shall provide software as a service (SaaS) hosting and support for Client's operations, with 99.5% uptime guarantee. If availability falls below 99.5% in any calendar month, Client receives service credits equal to 10% of that month's fees.
