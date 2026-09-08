@@ -1,0 +1,55 @@
+PROFESSIONAL SERVICES AGREEMENT
+
+This Professional Services Agreement ("Agreement") is entered into effective as of January 1, 2027 (the "Effective Date"), between Corporate Solutions Inc. ("Client") and Professional Consultants LLC ("Consultant").
+
+CONTRACT PURPOSE
+
+Consultant agrees to provide professional consulting services to Client in the area of business strategy and operations optimization.
+
+1. TERM
+
+The initial contract term shall be one (1) year from the Effective Date. This Agreement shall automatically renew for successive one-year periods unless either party provides 45 days' written notice of its intent not to renew.
+
+2. CONSULTANT FEES
+
+Client shall pay Consultant $5,000 USD per month for services rendered. Invoices will be submitted monthly and are due within 30 days of invoice date (Net 30).
+
+3. LATE PAYMENT CHARGES
+
+If Client fails to pay within 30 days, a late charge of 1.5% per month (18% annually or the maximum rate permitted by law, whichever is less) shall be applied to unpaid balances.
+
+4. SERVICE LEVEL GUARANTEE
+
+Consultant guarantees availability for consulting services during normal business hours with a response time of 24 hours or less. Service credits equal to 3% of monthly fees shall be provided for each response time failure in a calendar month.
+
+5. LIMITATION OF LIABILITY
+
+Consultant's total liability for any claims arising under this Agreement shall not exceed the fees paid to Consultant in the 12 months immediately preceding the claim, except for indemnification obligations which are not limited.
+
+6. INDEMNIFICATION
+
+Each party shall indemnify and defend the other against third-party claims arising from that party's breach of this Agreement, violation of law, or negligence.
+
+7. CONFIDENTIALITY OBLIGATIONS
+
+Each party shall keep all confidential information provided by the other party strictly confidential for three (3) years following termination of this Agreement.
+
+8. DISPUTE RESOLUTION AND GOVERNING LAW
+
+This Agreement shall be governed by the laws of Texas. Any disputes shall be resolved through binding arbitration in Houston, Texas, under the rules of the American Arbitration Association.
+
+9. TERMINATION
+
+Either party may terminate this Agreement: (a) immediately for material breach that remains uncured after 30 days' notice, or (b) for any reason with 60 days' written notice.
+
+10. ASSIGNMENT OF CONTRACT
+
+Neither party may assign this Agreement to a third party without prior written consent. Consultant may assign to an affiliate or acquiring entity in connection with a sale of substantially all assets or merger.
+
+11. SERVICE LEVEL CREDITS
+
+If monthly uptime falls below 95%, Client will receive service credit equal to 2% of that month's service fees.
+
+ENTIRE AGREEMENT
+
+This Agreement states the entire agreement between the parties and supersedes all prior understandings.
