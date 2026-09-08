@@ -73,7 +73,7 @@ parse_duration() {
   [[ -z "$duration_str" || "$duration_str" == "null" ]] && return 1
 
   # Extract number and unit
-  if [[ $duration_str =~ ^([0-9]+)\.?[0-9]* +([a-z]+) ]]; then
+  if [[ $duration_str =~ ^([0-9]+)\.?[0-9]*[[:space:]]+([a-z]+) ]]; then
     local num="${BASH_REMATCH[1]}"
     local unit="${BASH_REMATCH[2]}"
 
@@ -121,7 +121,7 @@ found=0
 for extraction_file in "$EXTRACTION_DIR"/*.json; do
   [ -f "$extraction_file" ] || continue
 
-  ((processed++))
+  ((++processed))
 
   # Extract contract data
   contract_type=$(jq -r '.contract_type.value // "UNKNOWN"' "$extraction_file" 2>/dev/null || echo "UNKNOWN")
@@ -205,13 +205,16 @@ for extraction_file in "$EXTRACTION_DIR"/*.json; do
         }')
 
       contracts_due+=("$contract_data")
-      ((found++))
+      ((++found))
     fi
   fi
 done
 
 # Sort by days_until_deadline (ascending - most urgent first)
-if [ ${#contracts_due[@]} -gt 0 ]; then
+# Temporarily disable set -u for array length check
+set +u
+
+if [[ ${#contracts_due[@]} -gt 0 ]]; then
   case "$OUTPUT_FORMAT" in
     json)
       printf '%s\n' "${contracts_due[@]}" | jq -s 'sort_by(.days_until_deadline)'
@@ -234,4 +237,5 @@ else
   echo "[]"
 fi
 
+set -u
 exit 0
