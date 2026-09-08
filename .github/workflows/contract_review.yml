@@ -72,7 +72,10 @@ jobs:
         if: steps.detect.outputs.count != '0'
         run: |
           mkdir -p ~/.claude
-          jq -n '{projects: {"/home/runner/work/LegalTeam/LegalTeam": {hasTrustDialogAccepted: true}}}' > ~/.claude/claude.json
+          REPO_PATH=$(pwd)
+          jq -n --arg repoPath "$REPO_PATH" '{projects: {($repoPath): {hasTrustDialogAccepted: true}}}' > ~/.claude/claude.json
+          echo "Trusted repository path: $REPO_PATH"
+          cat ~/.claude/claude.json
 
       - name: Process contracts
         id: process
