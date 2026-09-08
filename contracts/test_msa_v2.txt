@@ -1,0 +1,37 @@
+MASTER SERVICE AGREEMENT
+
+This Master Service Agreement ("Agreement") is made as of October 1, 2026 (the "Effective Date") between Software Solutions Inc. ("Provider") and Enterprise Corp. ("Client").
+
+1. TERM
+The initial term shall be three (3) years from the Effective Date. The Agreement shall automatically renew for successive one-year periods unless either party provides written notice of non-renewal no later than ninety (90) days before the end of the current term.
+
+2. SERVICES
+Provider shall provide cloud infrastructure services including hosting, maintenance, and 24/7 support.
+
+3. FEES AND PAYMENT
+3.1 Service Fee: Client shall pay Provider a monthly fee of $25,000 USD.
+3.2 Payment Terms: Net 45 days from invoice date.
+3.3 Late Payment: Late payments accrue interest at 2% per month, not to exceed the maximum rate allowed by law.
+
+4. INTELLECTUAL PROPERTY
+All Provider technology and pre-existing IP remains Provider's property. Custom developments shall be jointly owned.
+
+5. WARRANTY AND LIMITATION OF LIABILITY
+5.1 Warranty Disclaimer: Services provided AS-IS, without warranties of any kind.
+5.2 Limitation: Neither party's liability shall exceed the fees paid in the preceding 12 months.
+5.3 Indemnification: Each party shall indemnify the other against third-party claims arising from its breach or negligence.
+
+6. CONFIDENTIALITY
+Confidential information disclosed under this Agreement shall remain confidential for five (5) years following termination.
+
+7. TERMINATION
+Either party may terminate for material breach if not cured within thirty (30) days of written notice. Either party may terminate for convenience with sixty (60) days' notice.
+
+8. GOVERNING LAW
+This Agreement is governed by Delaware law. Disputes shall be resolved by arbitration in Wilmington, Delaware.
+
+9. ASSIGNMENT
+Neither party may assign without written consent, except Provider may assign to a successor in a merger or acquisition.
+
+10. SERVICE LEVELS
+Provider shall maintain 99.9% uptime. If availability falls below 99.9% in any month, Client receives a 5% service credit for that month.
