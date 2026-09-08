@@ -68,6 +68,12 @@ jobs:
             cat /tmp/new_contracts.txt
           fi
 
+      - name: Trust workspace for Claude CLI
+        if: steps.detect.outputs.count != '0'
+        run: |
+          mkdir -p ~/.claude
+          jq -n '{projects: {"/home/runner/work/LegalTeam/LegalTeam": {hasTrustDialogAccepted: true}}}' > ~/.claude/claude.json
+
       - name: Process contracts
         id: process
         if: steps.detect.outputs.count != '0'
