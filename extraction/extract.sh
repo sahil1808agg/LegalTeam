@@ -31,18 +31,23 @@ shopt -u nocasematch
 
 mkdir -p "$OUT_DIR"
 
-# The claude subprocess only receives the contract text via stdin, so it
-# can't see CLAUDE.md unless told where to look — --allowedTools "Read"
-# plus the explicit path lets it actually open the schema instead of
-# guessing at what "22 hotspot fields" means.
-PROMPT="Read the extraction schema defined in CLAUDE.md at $REPO_ROOT/CLAUDE.md (the 'Extraction Schema' section, 22 fields), then extract all 22 hotspot fields per that schema from the contract text piped below. Output strict JSON only - no markdown wrapper, no prose. For each field include a citation object with paragraph_number and excerpt (max 20 words). Fields not found in source document: output null. NEVER guess or infer. If the contract names two or more parties without the document itself designating which one is the counterparty (e.g. only 'Party A'/'Party B' or 'Provider'/'Client' labels with no indication of which party is the record-owner's own company), you MUST output null for counterparty_name and add a flag object for it — never pick one party as the counterparty by assumption. Every field's output object MUST include a 'flag' key: null if nothing is ambiguous about that field, or an object {type, reason} if the field is null due to unresolvable ambiguity rather than the document simply not addressing the topic. Include this 'flag' key on all 22 fields every time, not only when a flag applies."
+# Extraction schema with 22 fields (inlined to avoid file read dependency in CI/CD)
+EXTRACTION_SCHEMA="1. contract_type, 2. counterparty_name, 3. effective_date, 4. execution_date, 5. term_length, 6. termination_notice_period, 7. auto_renewal_flag, 8. renewal_notice_deadline, 9. payment_amount, 10. payment_frequency, 11. payment_terms, 12. late_payment_penalty, 13. limitation_of_liability_cap, 14. indemnification_clause_present, 15. confidentiality_survival_period, 16. governing_law, 17. jurisdiction, 18. dispute_resolution_mechanism, 19. sla_commitments, 20. sla_credit_remedy, 21. data_processing_terms, 22. assignment_clause_terms"
+
+PROMPT="Extract all 22 hotspot fields from the contract text piped below. The 22 fields are: $EXTRACTION_SCHEMA
+
+Output strict JSON only - no markdown wrapper, no prose. For each field include a citation object with paragraph_number and excerpt (max 20 words). Fields not found in source document: output null. NEVER guess or infer.
+
+If the contract names two or more parties without the document itself designating which one is the counterparty (e.g. only 'Party A'/'Party B' or 'Provider'/'Client' labels with no indication of which party is the record-owner's own company), you MUST output null for counterparty_name and add a flag object for it — never pick one party as the counterparty by assumption.
+
+Every field's output object MUST include a 'flag' key: null if nothing is ambiguous about that field, or an object {type, reason} if the field is null due to unresolvable ambiguity rather than the document simply not addressing the topic. Include this 'flag' key on all 22 fields every time, not only when a flag applies."
 
 STEM="$(basename "$CONTRACT_FILE" .txt)"
 OUT_FILE="$OUT_DIR/${STEM}_extracted.json"
 
 # --output-format json wraps the response in {type, result, ...}; .result
 # is itself the JSON string the prompt asked for.
-ENVELOPE="$(cat "$CONTRACT_FILE" | claude -p "$PROMPT" --allowedTools "Read" --output-format json)"
+ENVELOPE="$(cat "$CONTRACT_FILE" | claude -p "$PROMPT" --output-format json)"
 RESULT_TEXT="$(jq -r '.result' <<< "$ENVELOPE")"
 
 # The model is told "strict JSON only - no markdown wrapper, no prose" but
