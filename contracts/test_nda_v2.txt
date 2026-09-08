@@ -1,0 +1,55 @@
+NON-DISCLOSURE AGREEMENT
+
+This Non-Disclosure Agreement ("Agreement") is entered into effective as of November 15, 2026 (the "Effective Date"), by and between TechStartup LLC ("Discloser") and VentureCap Partners ("Recipient").
+
+RECITALS
+
+WHEREAS, Discloser possesses certain confidential and proprietary information; and
+WHEREAS, Recipient desires to receive such information for the purpose of evaluating a potential business relationship.
+
+1. CONFIDENTIAL INFORMATION
+
+"Confidential Information" means all non-public information disclosed by Discloser to Recipient, including but not limited to business plans, financial data, product specifications, customer lists, source code, and trade secrets. Confidential Information does not include information that is: (a) publicly available; (b) previously known to Recipient; (c) independently developed; or (d) received from a third party without confidentiality obligations.
+
+2. OBLIGATIONS OF RECIPIENT
+
+Recipient shall:
+- Maintain all Confidential Information in strict confidence
+- Limit access to employees with a need to know
+- Use Confidential Information only for the stated evaluation purpose
+- Protect Confidential Information using the same care used for its own confidential information
+
+3. PERMITTED DISCLOSURES
+
+Recipient may disclose Confidential Information only:
+- As required by law or court order, with 30 days' prior written notice to Discloser
+- To its legal counsel for purposes of interpreting this Agreement
+- With Discloser's prior written consent
+
+4. TERM AND SURVIVAL
+
+This Agreement is effective for a period of two (2) years from the Effective Date. The confidentiality obligations shall survive termination of this Agreement and shall remain in effect for seven (7) years following the Effective Date, except for trade secrets which remain confidential for as long as they qualify as trade secrets under applicable law.
+
+5. RETURN OF INFORMATION
+
+Upon termination or upon Discloser's request, Recipient shall return or destroy all Confidential Information and certify destruction within 30 days.
+
+6. NO LICENSE
+
+This Agreement grants no license or rights to any Confidential Information except as expressly stated herein.
+
+7. REMEDIES
+
+Recipient acknowledges that breach of this Agreement would cause irreparable harm for which monetary damages would be an inadequate remedy. Discloser shall be entitled to seek injunctive relief without posting bond.
+
+8. GOVERNING LAW
+
+This Agreement shall be governed by and construed under the laws of the State of California.
+
+9. NO OBLIGATION
+
+This Agreement does not obligate either party to disclose any Confidential Information or to proceed with any transaction.
+
+10. ENTIRE AGREEMENT
+
+This Agreement constitutes the entire understanding between the parties regarding confidentiality.
