@@ -1,0 +1,51 @@
+FINAL TEST SERVICES AGREEMENT
+
+This Services Agreement ("Agreement") is made effective as of December 1, 2026 (the "Effective Date"), between Digital Innovations Corp. ("Company") and Technology Partners Inc. ("Service Provider").
+
+AGREEMENT SUMMARY
+
+Company and Service Provider agree that Service Provider shall provide software development and consulting services to Company in accordance with the terms of this Agreement.
+
+EFFECTIVE DATE AND TERM
+
+This Agreement becomes effective on December 1, 2026. The initial term shall be two (2) years. Either party may renew by providing written notice of its intent to renew not less than 60 days prior to expiration of the current term. If no notice is given, this Agreement shall automatically expire at the end of the current term.
+
+FEES
+
+Service Provider shall charge Company $15,000 USD per month for services. Invoices are due Net 60 (sixty days from invoice date).
+
+SERVICE LEVEL COMMITMENTS
+
+Service Provider commits to maintaining system availability of 99% during business hours (8 AM - 6 PM EST, Monday through Friday). If availability falls below 99%, Company shall receive service credits of 5% of monthly fees for each 1% below target.
+
+LIMITATION OF LIABILITY
+
+EXCEPT FOR INDEMNIFICATION OBLIGATIONS, NEITHER PARTY SHALL BE LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES. EACH PARTY'S TOTAL LIABILITY SHALL NOT EXCEED THE AMOUNT PAID OR PAYABLE TO SERVICE PROVIDER IN THE TWELVE (12) MONTHS PRECEDING THE EVENT GIVING RISE TO LIABILITY.
+
+INDEMNIFICATION
+
+Each party shall indemnify and hold harmless the other party from any claims, damages, and costs (including reasonable attorneys' fees) arising from the indemnifying party's breach of this Agreement or negligent performance.
+
+CONFIDENTIALITY
+
+Each party shall maintain confidentiality of the other party's proprietary and confidential information for a period of four (4) years after termination of this Agreement.
+
+GOVERNING LAW
+
+This Agreement shall be governed by the laws of the State of New York.
+
+ARBITRATION
+
+Any disputes arising from this Agreement shall be resolved by binding arbitration in New York, New York, in accordance with the American Arbitration Association rules.
+
+TERMINATION
+
+Either party may terminate this Agreement: (a) for material breach if the breaching party fails to cure within 45 days of written notice, or (b) for convenience with 90 days' written notice.
+
+ASSIGNMENT
+
+Neither party may assign this Agreement without written consent of the other party. However, Service Provider may assign to an affiliate or successor entity in connection with a merger, acquisition, or sale of substantially all of its assets.
+
+ENTIRE AGREEMENT
+
+This Agreement constitutes the entire agreement between the parties and supersedes all prior negotiations, representations, and agreements.
