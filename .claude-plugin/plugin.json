@@ -1,0 +1,15 @@
+{
+  "name": "contractiq",
+  "version": "1.0.0",
+  "description": "ContractIQ: AI-native contract lifecycle workspace for lean in-house legal teams. Packages the draft → redline → extract hotspots → insert to database → track obligations pipeline (UC1–UC6) as one plugin: 6 slash commands, the contract-extractor sub-agent, 4 redline/extraction audit hooks, and the contractiq skill documenting the whole pipeline.",
+  "author": {
+    "name": "Sahil Aggarwal",
+    "email": "sahilaggarwal999@gmail.com"
+  },
+  "keywords": ["legal", "contracts", "redline", "extraction", "obligations", "nda", "msa", "sow", "dpa"],
+  "commands": ["./.claude/commands"],
+  "agents": ["./.claude/agents/contract-extractor.md"],
+  "skills": ["./.claude/skills"],
+  "hooks": "./.claude/hooks/hooks.json",
+  "dependencies": ["google-drive@anthropic-tools", "slack@anthropic-tools"]
+}
