@@ -26,6 +26,49 @@
     }
   },
   "permissions": {
+    "blockReadsOutsideWorkingDirectories": true,
+    "deny": [
+      "WebFetch",
+      "WebSearch",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(Invoke-WebRequest *)",
+      "Bash(Invoke-RestMethod *)",
+      "Bash(iwr *)",
+      "Bash(irm *)",
+      "Bash(node -e *)",
+      "Bash(python -c *)",
+      "Bash(python3 -c *)",
+      "Bash(rm -rf *)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Bash(env)",
+      "Bash(printenv*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/.ssh/**)",
+      "Read(**/.aws/**)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/id_rsa*)",
+      "Read(**/*.pfx)",
+      "Read(**/*.p12)",
+      "Read(**/*credentials*)",
+      "Read(//c/**/.env)",
+      "Read(//c/**/.env.*)",
+      "Read(//c/**/.ssh/**)",
+      "Read(//c/**/.aws/**)",
+      "Read(//c/**/*.pem)",
+      "Read(//c/**/*.key)",
+      "Read(//c/**/id_rsa*)",
+      "Read(//c/**/*.pfx)",
+      "Read(//c/**/*.p12)",
+      "Read(//c/**/*credentials*)",
+      "Write(.claude/settings.json)",
+      "Edit(.claude/settings.json)",
+      "Write(.claude/settings.local.json)",
+      "Edit(.claude/settings.local.json)"
+    ],
     "allow": [
       "Read(src/**)",
       "Write(src/**)",
@@ -35,6 +78,30 @@
       "Edit(tests/**)",
       "Read(config/**)",
       "Read(drafting/**)",
+      "Bash(bash contracts/chunker.sh *)",
+      "Bash(./contracts/chunker.sh *)",
+      "Bash(bash drafting/draft_nda.sh *)",
+      "Bash(./drafting/draft_nda.sh *)",
+      "Bash(bash drafting/draft_msa.sh *)",
+      "Bash(./drafting/draft_msa.sh *)",
+      "Bash(bash drafting/draft_sow.sh *)",
+      "Bash(./drafting/draft_sow.sh *)",
+      "Bash(bash redlining/redline.sh *)",
+      "Bash(./redlining/redline.sh *)",
+      "Bash(bash extraction/extract.sh *)",
+      "Bash(./extraction/extract.sh *)",
+      "Bash(bash extraction/parallel_extract.sh *)",
+      "Bash(./extraction/parallel_extract.sh *)",
+      "Bash(bash extraction/insert_hotspots.sh *)",
+      "Bash(./extraction/insert_hotspots.sh *)",
+      "Bash(bash extraction/merge_portfolio.sh *)",
+      "Bash(./extraction/merge_portfolio.sh *)",
+      "Bash(bash obligations/check_deadlines.sh *)",
+      "Bash(./obligations/check_deadlines.sh *)",
+      "Bash(bash obligations/morning_digest.sh *)",
+      "Bash(./obligations/morning_digest.sh *)",
+      "Bash(bash install.sh)",
+      "Bash(./install.sh)",
       "Bash(npm run test *)",
       "Bash(npm run lint)"
     ]
@@ -46,6 +113,12 @@
   },
   "hooks": {
     "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "bash .claude/hooks/audit_log.sh" }
+        ]
+      },
       {
         "matcher": "Bash",
         "hooks": [

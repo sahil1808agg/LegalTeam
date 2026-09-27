@@ -51,7 +51,7 @@ for script in \
   extraction/extract.sh extraction/parallel_extract.sh extraction/insert_hotspots.sh extraction/merge_portfolio.sh \
   obligations/check_deadlines.sh \
   contracts/chunker.sh \
-  .claude/hooks/pre_redline.sh .claude/hooks/post_redline.sh .claude/hooks/validate_input.sh .claude/hooks/freshness_check.sh \
+  .claude/hooks/pre_redline.sh .claude/hooks/post_redline.sh .claude/hooks/validate_input.sh .claude/hooks/freshness_check.sh .claude/hooks/audit_log.sh \
   install.sh
 do
   [[ -f "$script" ]] && chmod +x "$script" 2>/dev/null
