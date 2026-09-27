@@ -20,3 +20,8 @@ obligations/output/
 
 # Single-use human-confirmation markers for the freshness_check.sh hook
 .claude/hooks/.freshness_override/
+
+# Tool-call access log written by .claude/hooks/audit_log.sh - local runtime
+# record of every tool call in a session (including ad hoc debugging), not
+# curated deliverable content; never commit
+obligations/audit/
