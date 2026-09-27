@@ -12,6 +12,9 @@ redlining/output/
 # Extraction output (extraction/extract.sh) - regenerable, never commit extracted contract data
 extraction/output/
 
+# Deadline alert candidates (obligations/check_deadlines.sh) - regenerable, never commit
+obligations/output/
+
 # Transient per-call timing state for the post_redline.sh hook
 .claude/hooks/.redline_timing/
 

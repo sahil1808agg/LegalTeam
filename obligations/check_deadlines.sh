@@ -1,241 +1,259 @@
 #!/usr/bin/env bash
-# check_deadlines.sh — UC6: scan all extracted contracts and flag renewal
-# notice deadlines within the next N days (default 90).
+# check_deadlines.sh — UC6: scan the merged contract portfolio for upcoming
+# renewal-notice and expiry deadlines, then post a tiered Slack alert digest.
 #
-# Reads all extraction/output/*.json files, calculates renewal notice
-# deadlines based on effective_date + term_length + renewal_notice_period,
-# and outputs a JSON array of contracts with deadlines in the target window.
+# Legal Accuracy Rules 1/2 (CLAUDE.md): all date arithmetic in this script is
+# deterministic bash/jq, never LLM-guessed. expiry_date, renewal_date,
+# days_to_expiry, days_to_renewal, and the urgency tier are all computed here
+# and treated as final by the time the embedded Claude prompt runs. The
+# prompt is only asked to draft a recommended_action (an advisory suggestion,
+# per Redline Rule 6 — never an auto-executed decision) and to format/post
+# the Slack alert; it must not recompute or invent a date, contract, or
+# counterparty that isn't already in the candidate file.
 #
-# Usage: obligations/check_deadlines.sh [--days N] [--output FORMAT]
-# Outputs JSON array to stdout; each object includes counterparty, dates,
-# days_until_deadline, and a risk_level (URGENT/CRITICAL/WARNING) based on
-# proximity to the deadline.
+# Reads:   extraction/output/master_portfolio.json
+#          (built by extraction/merge_portfolio.sh — run that first if this
+#          script reports the file missing)
+# Writes:  obligations/output/deadline_alerts_<today>.json
+#          (the filtered, tiered candidate list — one entry per contract per
+#          triggering deadline type, so a contract can appear twice if both
+#          its renewal and expiry dates fall inside the window)
+# Posts:   one Slack message per non-empty urgency tier, via
+#          `claude -p` + mcp__claude_ai_Slack__slack_send_message
+#          (skipped with --dry-run; the prompt and candidate file are still
+#          written to disk so the run can be reviewed before posting)
+#
+# Usage: obligations/check_deadlines.sh [--days N] [--channel CHANNEL]
+#                                        [--portfolio PATH] [--dry-run]
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-EXTRACTION_DIR="$REPO_ROOT/extraction/output"
-DAYS_UNTIL_DEADLINE=90
-OUTPUT_FORMAT="json"  # could be json, markdown, slack
+PORTFOLIO_FILE="$REPO_ROOT/extraction/output/master_portfolio.json"
+OUT_DIR="$SCRIPT_DIR/output"
+DAYS_WINDOW=90
+CHANNEL="#legal-contracts"
+DRY_RUN=0
 
 usage() {
   cat >&2 <<'EOF'
-Usage: check_deadlines.sh [--days N] [--output FORMAT]
+Usage: check_deadlines.sh [--days N] [--channel CHANNEL] [--portfolio PATH] [--dry-run]
 
-  --days       Number of days to look ahead (default: 90)
-  --output     Output format: json, markdown, slack (default: json)
+  --days       Lookahead window in days for renewal AND expiry dates (default: 90)
+  --channel    Slack channel to post alerts to (default: #legal-contracts)
+  --portfolio  Path to the merged portfolio JSON (default: extraction/output/master_portfolio.json)
+  --dry-run    Compute candidates and build the Claude prompt, but don't call
+               claude/Slack — prints the prompt instead
   -h|--help    Show this help
 EOF
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --days) DAYS_UNTIL_DEADLINE="${2:-90}"; shift 2 ;;
-    --output) OUTPUT_FORMAT="${2:-json}"; shift 2 ;;
+    --days) DAYS_WINDOW="${2:-90}"; shift 2 ;;
+    --channel) CHANNEL="${2:-#legal-contracts}"; shift 2 ;;
+    --portfolio) PORTFOLIO_FILE="${2:-}"; shift 2 ;;
+    --dry-run) DRY_RUN=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Error: unknown argument: $1" >&2; usage; exit 1 ;;
   esac
 done
 
 command -v jq >/dev/null || { echo "Error: jq not found — install jq" >&2; exit 1; }
+if [[ "$DRY_RUN" -eq 0 ]]; then
+  command -v claude >/dev/null || { echo "Error: claude CLI not found — install it or use --dry-run" >&2; exit 1; }
+fi
 
-# Calculate dates
-TODAY=$(date -u +%Y-%m-%d)
-TODAY_EPOCH=$(date -u -d "$TODAY" +%s)
-DEADLINE_DATE=$(date -u -d "$TODAY + $DAYS_UNTIL_DEADLINE days" +%Y-%m-%d)
-DEADLINE_EPOCH=$(date -u -d "$DEADLINE_DATE" +%s)
-
-# Helper function to parse date string (handles ISO 8601 and common formats)
-parse_date() {
-  local date_str="$1"
-  # Remove any quotes, whitespace
-  date_str=$(echo "$date_str" | tr -d '"' | xargs)
-
-  # If empty or null, return empty
-  [[ -z "$date_str" || "$date_str" == "null" ]] && return 1
-
-  # Try ISO 8601 format first
-  if [[ $date_str =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
-    echo "$date_str"
-    return 0
-  fi
-
-  # Try to parse with date command (handles various formats)
-  date -u -d "$date_str" +%Y-%m-%d 2>/dev/null || return 1
+[[ -f "$PORTFOLIO_FILE" ]] || {
+  echo "Error: portfolio file not found: $PORTFOLIO_FILE" >&2
+  echo "Run extraction/merge_portfolio.sh first to build it from extraction/output/*_extracted.json" >&2
+  exit 1
 }
 
-# Helper function to parse duration (e.g., "10 years", "6 months", "30 days")
-parse_duration() {
-  local duration_str="$1"
-  duration_str=$(echo "$duration_str" | tr -d '"' | xargs | tr '[:upper:]' '[:lower:]')
+mkdir -p "$OUT_DIR"
 
-  [[ -z "$duration_str" || "$duration_str" == "null" ]] && return 1
+# shellcheck source=obligations/lib_deadlines.sh
+source "$SCRIPT_DIR/lib_deadlines.sh"
 
-  # Extract number and unit
-  if [[ $duration_str =~ ^([0-9]+)\.?[0-9]*[[:space:]]+([a-z]+) ]]; then
-    local num="${BASH_REMATCH[1]}"
-    local unit="${BASH_REMATCH[2]}"
-
-    case "$unit" in
-      year|years) echo "+$num years" ;;
-      month|months) echo "+$num months" ;;
-      day|days) echo "+$num days" ;;
-      week|weeks) echo "+$((num * 7)) days" ;;
-      *) echo "" ;;
-    esac
+urgency_tier() {
+  local d=$1
+  if (( d < 30 )); then echo "URGENT"
+  elif (( d < 60 )); then echo "ACTION_NEEDED"
+  else echo "WATCH"
   fi
 }
 
-# Helper to calculate days until date
-days_until() {
-  local target_date="$1"
-  local target_epoch=$(date -u -d "$target_date" +%s 2>/dev/null || return 1)
-  echo $(( (target_epoch - TODAY_EPOCH) / 86400 ))
-}
+CANDIDATES_TMP=$(mktemp)
+trap 'rm -f "$CANDIDATES_TMP"' EXIT
 
-# Calculate risk level based on days remaining
-risk_level() {
-  local days_remaining=$1
-  if [ "$days_remaining" -le 14 ]; then
-    echo "CRITICAL"
-  elif [ "$days_remaining" -le 30 ]; then
-    echo "URGENT"
-  else
-    echo "WARNING"
+total=0
+while IFS= read -r entry; do
+  ((++total)) || true
+
+  jq -e 'has("contract_type")' <<<"$entry" >/dev/null 2>&1 || continue
+
+  source_filename=$(jq -r '.source_filename // "unknown"' <<<"$entry")
+  contract_id=$(jq -r '.contract_id // "unknown"' <<<"$entry")
+  contract_name="${source_filename%_extracted.json}"
+  contract_type=$(jq -r '.contract_type.value // "UNKNOWN"' <<<"$entry")
+  counterparty=$(jq -r '.counterparty_name.value // "UNKNOWN"' <<<"$entry")
+  effective_date=$(jq -r '.effective_date.value // "null"' <<<"$entry")
+  execution_date=$(jq -r '.execution_date.value // "null"' <<<"$entry")
+  term_length=$(jq -r '.term_length.value // "null"' <<<"$entry")
+  notice_period_raw=$(jq -r '.termination_notice_period.value // "null"' <<<"$entry")
+  auto_renewal=$(jq -r '.auto_renewal_flag.value // false' <<<"$entry")
+  renewal_notice_deadline=$(jq -r '.renewal_notice_deadline.value // "null"' <<<"$entry")
+
+  # expiry_date = start_date (effective_date, else execution_date) + term_length
+  expiry_date=$(compute_expiry_date "$effective_date" "$execution_date" "$term_length")
+
+  # renewal_date = the extracted notice deadline if present, else
+  # expiry_date minus the termination notice period
+  renewal_date="null"
+  if [[ "$renewal_notice_deadline" != "null" ]]; then
+    renewal_date="$renewal_notice_deadline"
+  elif [[ "$expiry_date" != "null" && "$notice_period_raw" != "null" ]]; then
+    notice_offset=$(parse_duration "$notice_period_raw" || echo "")
+    if [[ -n "$notice_offset" ]]; then
+      notice_offset="${notice_offset/+/-}"
+      renewal_date=$(date -u -d "$expiry_date $notice_offset" +%Y-%m-%d 2>/dev/null || echo "null")
+    fi
   fi
-}
 
-# Process all extraction files
-declare -a contracts_due
+  notice_period_days=$(duration_to_days "$notice_period_raw" 2>/dev/null || echo "null")
 
-if [ ! -d "$EXTRACTION_DIR" ]; then
-  echo "[]"
+  days_to_expiry="null"
+  [[ "$expiry_date" != "null" ]] && days_to_expiry=$(days_until "$expiry_date" || echo "null")
+
+  days_to_renewal="null"
+  [[ "$renewal_date" != "null" ]] && days_to_renewal=$(days_until "$renewal_date" || echo "null")
+
+  for pair in "renewal:$renewal_date:$days_to_renewal" "expiry:$expiry_date:$days_to_expiry"; do
+    deadline_type="${pair%%:*}"
+    rest="${pair#*:}"
+    deadline_date="${rest%%:*}"
+    days_remaining="${rest#*:}"
+
+    [[ "$deadline_date" == "null" || "$days_remaining" == "null" ]] && continue
+    (( days_remaining < 0 || days_remaining > DAYS_WINDOW )) && continue
+
+    tier=$(urgency_tier "$days_remaining")
+
+    jq -cn \
+      --arg contract_name "$contract_name" \
+      --arg counterparty "$counterparty" \
+      --arg contract_type "$contract_type" \
+      --arg deadline_type "$deadline_type" \
+      --arg deadline_date "$deadline_date" \
+      --argjson days_until_deadline "$days_remaining" \
+      --arg urgency_tier "$tier" \
+      --arg auto_renewal "$auto_renewal" \
+      --arg notice_period_days "$notice_period_days" \
+      --arg notice_period_raw "$notice_period_raw" \
+      --arg source_filename "$source_filename" \
+      --arg contract_id "$contract_id" \
+      '{
+        contract_name: $contract_name,
+        counterparty: $counterparty,
+        contract_type: $contract_type,
+        deadline_type: $deadline_type,
+        deadline_date: $deadline_date,
+        days_until_deadline: $days_until_deadline,
+        urgency_tier: $urgency_tier,
+        auto_renewal: ($auto_renewal == "true"),
+        notice_period_days: (if $notice_period_days == "null" then null else ($notice_period_days | tonumber) end),
+        notice_period_raw: (if $notice_period_raw == "null" then null else $notice_period_raw end),
+        source_filename: $source_filename,
+        contract_id: $contract_id
+      }' >> "$CANDIDATES_TMP"
+  done
+done < <(jq -c '.[]' "$PORTFOLIO_FILE")
+
+CANDIDATE_COUNT=$(wc -l < "$CANDIDATES_TMP" | tr -d ' ')
+ALERTS_FILE="$OUT_DIR/deadline_alerts_$TODAY.json"
+
+if [[ "$CANDIDATE_COUNT" -gt 0 ]]; then
+  jq -s 'sort_by(.days_until_deadline)' "$CANDIDATES_TMP" > "$ALERTS_FILE"
+else
+  echo "[]" > "$ALERTS_FILE"
+fi
+
+echo "Scanned $total contract(s) in $PORTFOLIO_FILE; $CANDIDATE_COUNT deadline(s) within $DAYS_WINDOW days -> $ALERTS_FILE" >&2
+
+if [[ "$CANDIDATE_COUNT" -eq 0 ]]; then
+  echo "No deadlines within the window — nothing to post." >&2
   exit 0
 fi
 
-# Count processing
-processed=0
-found=0
+PROMPT=$(cat <<PROMPT_EOF
+You will read a JSON array of contract deadline alerts and post them to Slack via MCP.
 
-for extraction_file in "$EXTRACTION_DIR"/*.json; do
-  [ -f "$extraction_file" ] || continue
+File to read: $ALERTS_FILE
 
-  ((++processed))
+Each entry already has final, correct values computed deterministically — do
+not recompute, second-guess, or alter deadline_date, days_until_deadline, or
+urgency_tier. Never invent a contract, counterparty, or date that is not in
+this file (Legal Accuracy Rule 1 — no fabrication).
 
-  # Extract contract data
-  contract_type=$(jq -r '.contract_type.value // "UNKNOWN"' "$extraction_file" 2>/dev/null || echo "UNKNOWN")
-  counterparty=$(jq -r '.counterparty_name.value // "UNKNOWN"' "$extraction_file" 2>/dev/null || echo "UNKNOWN")
-  effective_date=$(jq -r '.effective_date.value // null' "$extraction_file" 2>/dev/null)
-  execution_date=$(jq -r '.execution_date.value // null' "$extraction_file" 2>/dev/null)
-  term_length=$(jq -r '.term_length.value // null' "$extraction_file" 2>/dev/null)
-  renewal_notice_deadline=$(jq -r '.renewal_notice_deadline.value // null' "$extraction_file" 2>/dev/null)
-  renewal_notice_period=$(jq -r '.termination_notice_period.value // null' "$extraction_file" 2>/dev/null)
-  auto_renewal=$(jq -r '.auto_renewal_flag.value // false' "$extraction_file" 2>/dev/null)
+Each entry has:
+- contract_name, counterparty, contract_type
+- deadline_type: "renewal" or "expiry"
+- deadline_date (ISO 8601), days_until_deadline (integer)
+- urgency_tier: URGENT (<30 days), ACTION_NEEDED (30-60 days), or WATCH (60-90 days)
+- auto_renewal (boolean)
+- notice_period_days (integer or null), notice_period_raw (original extracted string or null)
 
-  # Determine the most relevant start date
-  start_date=""
-  if [ -n "$effective_date" ] && [ "$effective_date" != "null" ]; then
-    start_date="$effective_date"
-  elif [ -n "$execution_date" ] && [ "$execution_date" != "null" ]; then
-    start_date="$execution_date"
-  fi
+Task:
+1. Read the JSON file.
+2. Group entries by urgency_tier.
+3. For each entry, draft a recommended_action, one of: renew, renegotiate,
+   terminate, let-expire. You only have the fields above — no visibility into
+   deal quality, budget, or relationship health — so default to the most
+   conservative, reversible suggestion:
+   - auto_renewal is true and tier is URGENT or ACTION_NEEDED -> "renegotiate"
+     (there's still a window to act before it locks in)
+   - auto_renewal is true and tier is WATCH -> "renew" (monitor, no action needed yet)
+   - auto_renewal is false or null and deadline_type is "expiry" -> "let-expire"
+     unless a renewal path is evident elsewhere in the same contract's other
+     alert entry, in which case "renegotiate"
+   - otherwise -> "renegotiate"
+   Do not recommend "terminate" from this data alone — nothing here indicates
+   an active decision to end the relationship. Label every recommendation as
+   a suggestion for lawyer review, never as a decision (consistent with this
+   project's rule that fallback/negotiation suggestions are surfaced only,
+   never auto-acted-on).
+4. Post exactly one Slack message per non-empty tier, in this order: URGENT,
+   ACTION_NEEDED, WATCH. Skip a tier's message entirely if it has zero entries.
+   - URGENT tier: red color/emoji (e.g. 🔴), header like "🔴 URGENT — Contract Deadlines (<30 days)"
+   - ACTION_NEEDED tier: orange (e.g. 🟠), header like "🟠 ACTION NEEDED — Contract Deadlines (30-60 days)"
+   - WATCH tier: yellow (e.g. 🟡), header like "🟡 WATCH — Contract Deadlines (60-90 days)"
+   - Within each message, list every entry in that tier with: contract_name,
+     counterparty, deadline_date, deadline_type, auto_renewal status,
+     notice_period_days, and recommended_action (clearly marked "Suggested —
+     requires lawyer review").
+5. Use mcp__claude_ai_Slack__slack_send_message to post each tier's message to: $CHANNEL
 
-  # Calculate renewal notice deadline if not explicitly stated
-  calculated_deadline=""
-  if [ -n "$start_date" ] && [ "$start_date" != "null" ]; then
-    # If term_length exists, calculate when term ends, then subtract notice period
-    if [ -n "$term_length" ] && [ "$term_length" != "null" ]; then
-      term_offset=$(parse_duration "$term_length" || echo "")
-      if [ -n "$term_offset" ]; then
-        term_end=$(date -u -d "$start_date $term_offset" +%Y-%m-%d 2>/dev/null || echo "")
+Go ahead and post the messages to Slack now.
+PROMPT_EOF
+)
 
-        if [ -n "$term_end" ]; then
-          # Subtract notice period from term end to get deadline
-          if [ -n "$renewal_notice_period" ] && [ "$renewal_notice_period" != "null" ]; then
-            notice_offset=$(parse_duration "$renewal_notice_period" || echo "")
-            if [ -n "$notice_offset" ]; then
-              # Convert notice_offset to negative for subtraction
-              notice_offset="${notice_offset/+/-}"
-              calculated_deadline=$(date -u -d "$term_end $notice_offset" +%Y-%m-%d 2>/dev/null || echo "")
-            fi
-          else
-            # Default to 30 days before term end if no explicit notice period
-            calculated_deadline=$(date -u -d "$term_end -30 days" +%Y-%m-%d 2>/dev/null || echo "")
-          fi
-        fi
-      fi
-    fi
-  fi
-
-  # Use explicit deadline if present, otherwise calculated
-  target_deadline="$renewal_notice_deadline"
-  if [ -z "$target_deadline" ] || [ "$target_deadline" = "null" ]; then
-    target_deadline="$calculated_deadline"
-  fi
-
-  # Check if deadline is within the window
-  if [ -n "$target_deadline" ] && [ "$target_deadline" != "null" ]; then
-    days_remain=$(days_until "$target_deadline" || echo "999")
-
-    if [ "$days_remain" -ge 0 ] && [ "$days_remain" -le "$DAYS_UNTIL_DEADLINE" ]; then
-      risk=$(risk_level "$days_remain")
-
-      contract_data=$(jq -n \
-        --arg counterparty "$counterparty" \
-        --arg type "$contract_type" \
-        --arg file "$(basename "$extraction_file")" \
-        --arg effective_date "$start_date" \
-        --arg term_length "$term_length" \
-        --arg deadline "$target_deadline" \
-        --arg days_until "$days_remain" \
-        --arg risk "$risk" \
-        --arg auto_renewal "$auto_renewal" \
-        '{
-          counterparty: $counterparty,
-          contract_type: $type,
-          extraction_file: $file,
-          effective_date: $effective_date,
-          term_length: $term_length,
-          renewal_notice_deadline: $deadline,
-          days_until_deadline: ($days_until | tonumber),
-          risk_level: $risk,
-          auto_renewal: ($auto_renewal == "true" or $auto_renewal == "yes" or $auto_renewal == true),
-          action: (if ($risk == "CRITICAL" or $risk == "URGENT") then "REVIEW_REQUIRED" else "TRACK" end)
-        }')
-
-      contracts_due+=("$contract_data")
-      ((++found))
-    fi
-  fi
-done
-
-# Sort by days_until_deadline (ascending - most urgent first)
-# Temporarily disable set -u for array length check
-set +u
-
-if [[ ${#contracts_due[@]} -gt 0 ]]; then
-  case "$OUTPUT_FORMAT" in
-    json)
-      printf '%s\n' "${contracts_due[@]}" | jq -s 'sort_by(.days_until_deadline)'
-      ;;
-    markdown)
-      echo "# Renewal Deadlines (Next $DAYS_UNTIL_DEADLINE Days)"
-      echo ""
-      echo "| Counterparty | Type | Deadline | Days Left | Risk | Auto-Renew? |"
-      echo "|---|---|---|---|---|---|"
-      printf '%s\n' "${contracts_due[@]}" | jq -r '.[] | "| \(.counterparty) | \(.contract_type) | \(.renewal_notice_deadline) | \(.days_until_deadline) | \(.risk_level) | \(.auto_renewal) |"' | sort -t'|' -k3
-      echo ""
-      echo "---"
-      echo "_Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ) | Scanned: $processed contracts_"
-      ;;
-    slack)
-      printf '%s\n' "${contracts_due[@]}" | jq -s '.'
-      ;;
-  esac
-else
-  echo "[]"
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  echo "--- DRY RUN: not calling claude/Slack. Prompt that would be sent: ---"
+  echo "$PROMPT"
+  exit 0
 fi
 
-set -u
-exit 0
+OUTPUT=$(claude -p "$PROMPT" --allowedTools "Read,mcp__claude_ai_Slack__slack_send_message" 2>&1 || true)
+echo "$OUTPUT"
+
+if echo "$OUTPUT" | grep -qi "posted\|sent\|success"; then
+  echo "Alerts posted to Slack ($CANDIDATE_COUNT deadline(s) across up to 3 tier messages)." >&2
+  exit 0
+elif echo "$OUTPUT" | grep -qi "error\|failed"; then
+  echo "Error: Claude/Slack MCP reported a failure — see output above" >&2
+  exit 1
+else
+  echo "Warning: unclear result from claude -p — check output above" >&2
+  exit 1
+fi

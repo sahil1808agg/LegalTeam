@@ -25,20 +25,36 @@ jobs:
           sudo apt-get install -y jq 2>&1 | grep -v "^Reading"
           command -v jq >/dev/null || { echo "jq installation failed"; exit 1; }
 
-      - name: Check renewal deadlines
+      - name: Merge extracted contracts into portfolio
+        run: |
+          set -euo pipefail
+          chmod +x extraction/merge_portfolio.sh
+          if ! ls extraction/output/*_extracted.json >/dev/null 2>&1; then
+            echo "No extracted contracts found in extraction/output/ — nothing to merge."
+            echo '[]' > /tmp/master_portfolio_empty.json
+            mkdir -p extraction/output
+            cp /tmp/master_portfolio_empty.json extraction/output/master_portfolio.json
+          else
+            bash extraction/merge_portfolio.sh
+          fi
+
+      - name: Check renewal/expiry deadlines
         id: check
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           set -euo pipefail
 
-          echo "→ Scanning contracts for renewal deadlines in next 90 days..."
+          echo "→ Scanning portfolio for renewal/expiry deadlines in next 90 days..."
 
-          # Make script executable
           chmod +x obligations/check_deadlines.sh
 
-          # Run deadline check
-          if ! deadlines_json=$(bash obligations/check_deadlines.sh --days 90 --output json 2>/dev/null); then
+          # --dry-run: this step only needs the deterministic candidate list
+          # (deadline_alerts_<date>.json). It does NOT call `claude -p` +
+          # Slack MCP here — Slack MCP requires a local Claude Code session
+          # (see docs/SLACK_MCP_SETUP.md), which GitHub Actions runners don't
+          # have. CI posts via the plain Slack webhook in notify-slack below;
+          # local/manual runs of check_deadlines.sh (without --dry-run) do
+          # the rich MCP-based posting instead.
+          if ! bash obligations/check_deadlines.sh --days 90 --dry-run >/dev/null; then
             echo "✗ Failed to check deadlines"
             echo "digest_json=[]" >> $GITHUB_OUTPUT
             echo "contracts_count=0" >> $GITHUB_OUTPUT
@@ -47,33 +63,33 @@ jobs:
             exit 1
           fi
 
-          # Parse results
+          alerts_file="obligations/output/deadline_alerts_$(date -u +%Y-%m-%d).json"
+          deadlines_json=$(cat "$alerts_file")
+
           contracts_count=$(echo "$deadlines_json" | jq 'length')
-          urgent_count=$(echo "$deadlines_json" | jq '[.[] | select(.risk_level == "CRITICAL" or .risk_level == "URGENT")] | length')
+          urgent_count=$(echo "$deadlines_json" | jq '[.[] | select(.urgency_tier == "URGENT")] | length')
 
-          echo "✓ Found $contracts_count contracts with deadlines in next 90 days"
-          echo "✓ Urgent/Critical: $urgent_count"
+          echo "✓ Found $contracts_count deadline(s) in next 90 days"
+          echo "✓ Urgent (<30 days): $urgent_count"
 
-          # Analyze with Claude if there are contracts due
+          # Analyze with Claude if there are deadlines due (plain text-mode
+          # call, no MCP tools needed — works fine in CI)
           analysis_json="{}"
           if [ "$contracts_count" -gt 0 ]; then
-            echo "→ AI Analysis of renewal deadlines..."
+            echo "→ AI Analysis of deadlines..."
 
-            analysis_prompt="Analyze this JSON array of contract renewal deadlines. Provide a JSON response with: 1) summary (brief overview), 2) critical_actions (array of immediate actions for CRITICAL items), 3) risk_patterns (any recurring risks or patterns), 4) recommended_process_improvements (how to avoid future deadline misses), 5) priority_focus (which items need immediate attention). Keep responses concise and actionable."
+            analysis_prompt="Analyze this JSON array of contract renewal/expiry deadlines. Each entry has contract_name, counterparty, contract_type, deadline_type (renewal/expiry), deadline_date, days_until_deadline, urgency_tier (URGENT/ACTION_NEEDED/WATCH), auto_renewal, notice_period_days. Provide a JSON response with: 1) summary (brief overview), 2) critical_actions (array of immediate actions for URGENT items), 3) risk_patterns (any recurring risks or patterns), 4) recommended_process_improvements (how to avoid future deadline misses), 5) priority_focus (which items need immediate attention). Keep responses concise and actionable. Do not invent facts not present in the data."
 
             analysis_result=$(echo "$deadlines_json" | \
               claude -p "$analysis_prompt" --output-format json 2>/dev/null || echo "{}")
 
-            # Extract result from JSON envelope
             if echo "$analysis_result" | jq . >/dev/null 2>&1; then
               analysis_json=$(echo "$analysis_result" | jq -r '.result // empty' | jq . 2>/dev/null || echo "{}")
             fi
           fi
 
-          # Build digest
           digest_json="$deadlines_json"
 
-          # Output for next steps
           echo "digest_json<<EOF" >> $GITHUB_OUTPUT
           echo "$digest_json" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -83,9 +99,10 @@ jobs:
           echo "contracts_count=$contracts_count" >> $GITHUB_OUTPUT
           echo "urgent_count=$urgent_count" >> $GITHUB_OUTPUT
 
-          # Also save to file for debugging
           echo "$digest_json" | jq '.' > /tmp/renewals_digest.json
           echo "$analysis_json" | jq '.' > /tmp/renewals_analysis.json
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Generate Markdown summary
         id: markdown
@@ -99,36 +116,29 @@ jobs:
           count=$(echo "$digest" | jq 'length')
 
           if [ "$count" -eq 0 ]; then
-            summary=$(cat <<'EOF'
-# ✅ Renewal Deadline Check
+            cat > /tmp/full_summary.md <<'EOF'
+# ✅ Renewal/Expiry Deadline Check
 
-**Status:** No renewal deadlines in the next 90 days
-**Checked:** $(date -u +%Y-%m-%d\ %H:%M:%SZ)
+**Status:** No renewal or expiry deadlines in the next 90 days
 
 All contracts are on track!
 EOF
-            )
           else
-            digest=$(echo "$DIGEST")
             analysis=$(echo "$ANALYSIS")
+            urgent=$(echo "$digest" | jq '[.[] | select(.urgency_tier == "URGENT")] | length')
 
-            # Build detailed summary
-            summary=$(cat <<'EOF'
-# 🔔 Renewal Deadline Digest
+            {
+              echo "# 🔔 Renewal/Expiry Deadline Digest"
+              echo ""
+              echo "**Deadlines Due:** $count"
+              echo "**Urgent (<30 days):** $urgent"
+              echo ""
+              echo "## 🤖 AI Analysis Summary"
+              echo ""
+            } > /tmp/summary.md
 
-**Report Date:** $(date -u +%Y-%m-%d\ %H:%M:%SZ)
-**Contracts Due:** $(echo "$digest" | jq 'length')
-**Critical/Urgent:** $(echo "$digest" | jq '[.[] | select(.risk_level == "CRITICAL" or .risk_level == "URGENT")] | length')
-
-## 🤖 AI Analysis Summary
-
-EOF
-
-            # Add Claude's analysis
             summary_text=$(echo "$analysis" | jq -r '.summary // ""' 2>/dev/null)
-            if [ -n "$summary_text" ]; then
-              echo "$summary_text" >> /tmp/summary.md
-            fi
+            [ -n "$summary_text" ] && echo "$summary_text" >> /tmp/summary.md
 
             critical_actions=$(echo "$analysis" | jq -r '.critical_actions[]? // empty' 2>/dev/null | sed 's/^/- /')
             if [ -n "$critical_actions" ]; then
@@ -144,42 +154,41 @@ EOF
               echo "$priority_focus" >> /tmp/summary.md
             fi
 
-            echo "" >> /tmp/summary.md
-            echo "## 📋 Upcoming Deadlines" >> /tmp/summary.md
-            echo "" >> /tmp/summary.md
-            cat >> /tmp/summary.md <<'EOF'
-| Counterparty | Type | Deadline | Days Left | Risk | Action |
-|---|---|---|---|---|---|
-EOF
+            {
+              echo ""
+              echo "## 📋 Upcoming Deadlines"
+              echo ""
+              echo "| Contract | Counterparty | Type | Deadline Type | Deadline Date | Days Left | Tier |"
+              echo "|---|---|---|---|---|---|---|"
+            } >> /tmp/summary.md
 
-            # Add each contract row
-            echo "$digest" | jq -r '.[] | "| \(.counterparty) | \(.contract_type) | \(.renewal_notice_deadline) | \(.days_until_deadline) | \(.risk_level) | \(.action) |"' >> /tmp/summary.md
+            echo "$digest" | jq -r '.[] | "| \(.contract_name) | \(.counterparty) | \(.contract_type) | \(.deadline_type) | \(.deadline_date) | \(.days_until_deadline) | \(.urgency_tier) |"' >> /tmp/summary.md
 
-            # Add critical/urgent items section
-            cat >> /tmp/summary.md <<'EOF'
+            {
+              echo ""
+              echo "## 🚨 Urgent Items (<30 days)"
+              echo ""
+            } >> /tmp/summary.md
 
-## 🚨 Critical/Urgent Items
+            echo "$digest" | jq -r '.[] | select(.urgency_tier == "URGENT") | "- **\(.counterparty)** (\(.contract_name), \(.deadline_type)): due **\(.deadline_date)** (in \(.days_until_deadline) days)"' >> /tmp/summary.md
 
-EOF
-
-            # List critical/urgent items
-            echo "$digest" | jq -r '.[] | select(.risk_level == "CRITICAL" or .risk_level == "URGENT") | "- **\(.counterparty)** (\(.contract_type)): Notice due **\(.renewal_notice_deadline)** (in \(.days_until_deadline) days)"' >> /tmp/summary.md
-
-            # Add auto-renewal note
             auto_renew_count=$(echo "$digest" | jq '[.[] | select(.auto_renewal == true)] | length')
             if [ "$auto_renew_count" -gt 0 ]; then
-              echo "" >> /tmp/summary.md
-              echo "## 🔄 Auto-Renewal Alert" >> /tmp/summary.md
-              echo "" >> /tmp/summary.md
-              echo "The following contracts **auto-renew** — ensure notices are filed if you do not want renewal:" >> /tmp/summary.md
-              echo "$digest" | jq -r '.[] | select(.auto_renewal == true) | "- \(.counterparty) — \(.renewal_notice_deadline)"' >> /tmp/summary.md
+              {
+                echo ""
+                echo "## 🔄 Auto-Renewal Alert"
+                echo ""
+                echo "The following contracts **auto-renew** — ensure notices are filed if you do not want renewal:"
+              } >> /tmp/summary.md
+              echo "$digest" | jq -r '.[] | select(.auto_renewal == true) | "- \(.counterparty) — \(.deadline_date)"' >> /tmp/summary.md
             fi
 
-            # Add process improvement suggestions
             improvements=$(echo "$analysis" | jq -r '.recommended_process_improvements[]? // empty' 2>/dev/null | sed 's/^/- /')
             if [ -n "$improvements" ]; then
-              echo "" >> /tmp/summary.md
-              echo "## 💡 Process Improvements" >> /tmp/summary.md
+              {
+                echo ""
+                echo "## 💡 Process Improvements"
+              } >> /tmp/summary.md
               echo "$improvements" >> /tmp/summary.md
             fi
 
@@ -196,15 +205,14 @@ EOF
           COUNT: ${{ steps.check.outputs.contracts_count }}
           URGENT: ${{ steps.check.outputs.urgent_count }}
         run: |
-          echo "📊 Daily Renewal Digest"
+          echo "📊 Daily Renewal/Expiry Digest"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo ""
           echo "$MARKDOWN"
           echo ""
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "Total contracts scanned: (from extraction/output/)"
           echo "Deadlines in next 90 days: $COUNT"
-          echo "Critical/Urgent items: $URGENT"
+          echo "Urgent (<30 days): $URGENT"
 
   notify-slack:
     runs-on: ubuntu-latest
@@ -225,14 +233,11 @@ EOF
           analysis=$(echo "$ANALYSIS_JSON")
 
           echo "🔔 Preparing Slack notification..."
-          echo "Contracts due: $COUNT | Urgent: $URGENT"
+          echo "Deadlines due: $COUNT | Urgent: $URGENT"
 
-          # Build Slack message blocks
           if [ "$COUNT" -eq 0 ]; then
-            # All clear message
             slack_message=$(jq -n \
-              --arg status "✅ No renewal deadlines in next 90 days" \
-              --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --arg status "✅ No renewal/expiry deadlines in next 90 days" \
               '{
                 channel: "#legal-contracts",
                 icon_emoji: ":calendar:",
@@ -244,10 +249,6 @@ EOF
                 }]
               }')
           else
-            # Build detailed blocks with contract list and analysis
-            critical_urgent=$(echo "$digest" | jq '[.[] | select(.risk_level == "CRITICAL" or .risk_level == "URGENT")] | length')
-
-            # Extract analysis fields
             ai_summary=$(echo "$analysis" | jq -r '.summary // ""' 2>/dev/null)
             priority_focus=$(echo "$analysis" | jq -r '.priority_focus // ""' 2>/dev/null)
 
@@ -262,7 +263,7 @@ EOF
                 channel: "#legal-contracts",
                 icon_emoji: ":bell:",
                 username: "ContractIQ Renewals",
-                text: ("🔔 Renewal Deadlines — " + $count + " contracts due in next 90 days"),
+                text: ("🔔 Renewal/Expiry Deadlines — " + $count + " due in next 90 days"),
                 attachments: [
                   {
                     color: (if ($urgent | tonumber) > 0 then "danger" else "warning" end),
@@ -272,22 +273,27 @@ EOF
                   },
                   {
                     color: (if ($urgent | tonumber) > 0 then "danger" else "warning" end),
-                    title: "Renewal Notice Deadlines",
-                    text: ("Critical/Urgent: " + $urgent + " | Total: " + $count),
+                    title: "Renewal/Expiry Deadlines",
+                    text: ("Urgent: " + $urgent + " | Total: " + $count),
                     fields: [
                       {
-                        title: "Critical (Due ≤14 days)",
-                        value: ($digest | map(select(.risk_level == "CRITICAL")) | map("• \(.counterparty) (\(.contract_type)): \(.renewal_notice_deadline)") | join("\n") // "None — all clear"),
+                        title: "🔴 URGENT (<30 days)",
+                        value: ($digest | map(select(.urgency_tier == "URGENT")) | map("• \(.counterparty) (\(.contract_name), \(.deadline_type)): \(.deadline_date)") | join("\n") // "None — all clear"),
                         short: false
                       },
                       {
-                        title: "Urgent (Due 15-30 days)",
-                        value: ($digest | map(select(.risk_level == "URGENT")) | map("• \(.counterparty): \(.renewal_notice_deadline)") | join("\n") // "None"),
+                        title: "🟠 ACTION NEEDED (30-60 days)",
+                        value: ($digest | map(select(.urgency_tier == "ACTION_NEEDED")) | map("• \(.counterparty) (\(.deadline_type)): \(.deadline_date)") | join("\n") // "None"),
                         short: false
                       },
                       {
-                        title: "Auto-Renewing Contracts",
-                        value: ($digest | map(select(.auto_renewal == true)) | map("• \(.counterparty) — renews unless notice filed by \(.renewal_notice_deadline)") | join("\n") // "None"),
+                        title: "🟡 WATCH (60-90 days)",
+                        value: ($digest | map(select(.urgency_tier == "WATCH")) | map("• \(.counterparty) (\(.deadline_type)): \(.deadline_date)") | join("\n") // "None"),
+                        short: false
+                      },
+                      {
+                        title: "🔄 Auto-Renewing Contracts",
+                        value: ($digest | map(select(.auto_renewal == true)) | map("• \(.counterparty) — \(.deadline_type) date \(.deadline_date)") | join("\n") // "None"),
                         short: false
                       },
                       {
@@ -296,7 +302,7 @@ EOF
                         short: false
                       }
                     ],
-                    footer: "Daily scan of all extracted contracts",
+                    footer: "Daily scan of extraction/output/master_portfolio.json",
                     ts: ($timestamp | fromdateiso8601)
                   }
                 ]
@@ -334,7 +340,7 @@ EOF
           set -euo pipefail
 
           mkdir -p renewal-reports
-          echo "$DIGEST" | jq '.' > renewal-reports/renewals_$(date +%Y-%m-%d).json
+          echo "$DIGEST" | jq '.' > renewal-reports/deadline_alerts_$(date +%Y-%m-%d).json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
