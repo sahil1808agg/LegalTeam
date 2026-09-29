@@ -24,6 +24,13 @@ if [[ $# -eq 2 ]]; then
   NOTION_DATABASE_ID="$2"
 fi
 
+# ISO 8601 date this insert/update is happening on — distinct from
+# effective_date (a business date pulled from the contract itself), so a
+# viewer can tell "when was this record last touched by the pipeline"
+# without relying on Notion's own Created/Last edited metadata being
+# exposed in their view.
+DATE_STAMP="$(date -u +%Y-%m-%d)"
+
 # Validate file exists
 if [[ ! -f "$JSON_FILE" ]]; then
   echo "Error: JSON file not found: $JSON_FILE"
@@ -55,7 +62,7 @@ JSON Extracted Contract Data:
 PROMPT_END
 )
 
-CLAUDE_PROMPT+=$'\n'"CONTRACT_NAME: $CONTRACT_NAME"$'\n'"$JSON_CONTENT"
+CLAUDE_PROMPT+=$'\n'"CONTRACT_NAME: $CONTRACT_NAME"$'\n'"DATE_ADDED: $DATE_STAMP"$'\n'"$JSON_CONTENT"
 
 # Additional instructions for Notion operations
 CLAUDE_PROMPT+=$(cat <<PROMPT_END
@@ -88,12 +95,14 @@ The Contract Intelligence database has the following properties (corresponding t
 20. sla_credit_remedy (text)
 21. data_processing_terms (text)
 22. assignment_clause_terms (text)
+23. date_added (text) — the DATE_ADDED value given above (ISO 8601, YYYY-MM-DD); this is when the pipeline last touched the record, not a contract business date
 
 Instructions:
 - For each non-null field in the extracted data, insert or update the corresponding Notion property
 - Skip null fields (do not overwrite with empty values)
 - Preserve citations in a dedicated "citations" text property for audit trail
 - Preserve any flags (ambiguities) in a dedicated "flags" text property for human review
+- Always set date_added to the DATE_ADDED value given above, unconditionally, on both a create and an update — this is the one field that should always be (re)written even if nothing else changed
 - Use contract_name as the database lookup key for upsert operations
 - Return the Notion page URL after the operation completes
 PROMPT_END
@@ -125,4 +134,4 @@ echo "Prompt saved to: $PROMPT_FILE"
 echo "---"
 echo "Contract name: $CONTRACT_NAME"
 echo "Database ID: $NOTION_DATABASE_ID"
-echo "Fields: 22 hotspot schema fields (all non-null values will be inserted)"
+echo "Fields: 22 hotspot schema fields (all non-null values will be inserted) + date_added"
