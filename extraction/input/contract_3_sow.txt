@@ -1,0 +1,57 @@
+# Statement of Work
+
+## 1. Recitals
+
+This Statement of Work ("**SOW**") is entered into as of 2026-08-22 ("**Effective Date**") by and between Acme Consulting LLC, [ENTITY TYPE TO BE COMPLETED], with a principal place of business at [ADDRESS TO BE COMPLETED] ("**Provider**"), and Indigo Partners, [ENTITY TYPE TO BE COMPLETED], with a principal place of business at [ADDRESS TO BE COMPLETED] ("**Client**") (each a "**Party**" and together the "**Parties**").
+
+This SOW describes the project scope, deliverables, milestones, and acceptance criteria for the engagement between the Parties. Where this SOW is executed under a separately executed master services agreement between the Parties, the terms of that agreement govern in the event of any conflict with this SOW, except as this SOW expressly states otherwise.
+
+## 2. Project Scope
+
+The work is related to tech consulting and implementation of project
+
+## 3. Deliverables
+
+Provider shall provide the Client with the following deliverables (the "**Deliverables**"):
+
+- Consultation on improvements
+- A solution
+
+## 4. Milestones and Schedule
+
+The Deliverables shall be completed according to the following milestone schedule:
+
+- Consultation to be completed by Dec 2026 [DATE TO BE COMPLETED]
+- Solution to be ready by March 2027 [DATE TO BE COMPLETED]
+
+Dates above are subject to adjustment only through the Change Order process described in Section 6.
+
+## 5. Acceptance Criteria
+
+A Deliverable shall be deemed accepted by Client upon satisfaction of the following criteria: Both parties agree on the scope early and accept the changes. Client shall notify Provider in writing of acceptance or rejection of a Deliverable within ten (10) business days of delivery; any Deliverable not affirmatively rejected in writing within that period shall be deemed accepted. If Client rejects a Deliverable, Client shall specify in writing the respects in which the Deliverable fails to meet the acceptance criteria stated above, and Provider shall have a reasonable opportunity to cure before re-submission.
+
+## 6. Change Order Process
+
+Changes would be requested on additional cost and can lead to extension of timelines.
+
+No change to the scope, Deliverables, milestones, or fees described in this SOW shall be effective unless documented in a written change order signed by authorized representatives of both Parties.
+
+## 7. Entire Agreement
+
+This SOW, together with any master services agreement it is executed under, constitutes the entire agreement between the Parties with respect to its subject matter and supersedes all prior or contemporaneous agreements, understandings, and communications, whether written or oral, relating to such subject matter.
+
+---
+
+**Acme Consulting LLC**
+
+By: _______________________
+Name:
+Title:
+Date:
+
+**Indigo Partners**
+
+By: _______________________
+Name:
+Title:
+Date:

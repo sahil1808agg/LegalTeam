@@ -1,0 +1,75 @@
+# Master Service Agreement
+
+## 1. Recitals
+
+This Master Service Agreement ("**Agreement**") is entered into as of 2026-08-22 ("**Effective Date**") by and between MSAParty, [ENTITY TYPE TO BE COMPLETED], with a principal place of business at [ADDRESS TO BE COMPLETED] ("**Provider**"), and NDA Corp ltd, [ENTITY TYPE TO BE COMPLETED], with a principal place of business at [ADDRESS TO BE COMPLETED] ("**Client**") (each a "**Party**" and together the "**Parties**").
+
+The Parties wish to enter into this Agreement to govern the provision of services by Provider to Client as described herein, including any statements of work executed under it from time to time.
+
+## 2. Services
+
+Provider shall perform the following services for Client (the "**Services**"): tech consulting. Additional or modified scope may be documented in a separately executed statement of work referencing this Agreement, which shall be incorporated herein by reference upon execution by both Parties.
+
+## 3. Payment Terms
+
+Client shall pay Provider for the Services as follows: Net 60. Invoices not disputed in good faith within fifteen (15) days of receipt shall be deemed accepted. Amounts not paid when due shall accrue interest at the lesser of 1.5% per month or the maximum rate permitted by applicable law.
+
+## 4. Intellectual Property Ownership
+
+All intellectual property developed or delivered under this Agreement is owned by NDA Corp ltd. Except as expressly set forth in this Section, each Party retains all right, title, and interest in and to its own pre-existing intellectual property, and no license is granted by either Party to the other except as necessary to perform this Agreement or as expressly stated above.
+
+## 5. Term and Termination
+
+This Agreement shall commence on the Effective Date and continue for 10 years, unless earlier terminated as provided herein. Either Party may terminate this Agreement for material breach by the other Party that remains uncured thirty (30) days after written notice describing the breach. Termination of this Agreement shall not relieve either Party of obligations accrued prior to termination, including payment obligations for Services already performed.
+
+## 6. Warranty Disclaimers
+
+EXCEPT AS EXPRESSLY STATED IN THIS AGREEMENT, THE SERVICES AND ANY DELIVERABLES ARE PROVIDED "AS IS," AND PROVIDER DISCLAIMS ALL OTHER WARRANTIES, WHETHER EXPRESS, IMPLIED, OR STATUTORY, INCLUDING THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+## 7. Limitation of Liability
+
+EXCEPT FOR BREACHES OF CONFIDENTIALITY OBLIGATIONS, INDEMNIFICATION OBLIGATIONS, OR A PARTY'S GROSS NEGLIGENCE OR WILLFUL MISCONDUCT, EACH PARTY'S TOTAL AGGREGATE LIABILITY ARISING OUT OF OR RELATING TO THIS AGREEMENT SHALL NOT EXCEED 2 TIMES THE TOTAL FEES PAID OR PAYABLE BY CLIENT TO PROVIDER UNDER THIS AGREEMENT IN THE TWELVE (12) MONTHS PRECEDING THE EVENT GIVING RISE TO THE CLAIM. NEITHER PARTY SHALL BE LIABLE FOR ANY INDIRECT, INCIDENTAL, CONSEQUENTIAL, SPECIAL, OR PUNITIVE DAMAGES, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+## 8. Confidentiality
+
+Each Party may disclose confidential or proprietary information to the other in connection with this Agreement. The receiving Party shall use such information solely to perform its obligations under this Agreement, protect it with at least a reasonable degree of care, and not disclose it to third parties except as necessary to perform this Agreement or as required by law. This Section survives termination of this Agreement.
+
+## 9. Independent Contractor
+
+Provider is an independent contractor, and nothing in this Agreement shall be construed to create a partnership, joint venture, agency, or employment relationship between the Parties.
+
+## 10. Governing Law
+
+This Agreement shall be governed by and construed in accordance with the laws of Punjab, without regard to its conflict of laws principles. Each Party irrevocably submits to the exclusive jurisdiction and venue of the courts located in Punjab for any action arising out of or relating to this Agreement.
+
+## 11. Assignment
+
+Neither Party may assign this Agreement without the prior written consent of the other Party, except that either Party may assign this Agreement without consent in connection with a merger, acquisition, or sale of all or substantially all of its assets.
+
+## 12. Entire Agreement
+
+This Agreement, together with any statements of work executed under it, constitutes the entire agreement between the Parties with respect to its subject matter and supersedes all prior or contemporaneous agreements, understandings, and communications, whether written or oral, relating to such subject matter.
+
+## 13. Amendment
+
+This Agreement may be amended or modified only by a written instrument signed by authorized representatives of both Parties. No waiver of any provision of this Agreement shall be effective unless in writing and signed by the Party against whom the waiver is sought to be enforced.
+
+## 14. Counterparts
+
+This Agreement may be executed in one or more counterparts, each of which shall be deemed an original, and all of which together shall constitute one and the same instrument. A signature delivered by electronic means (including PDF or electronic signature platform) shall be deemed an original signature for all purposes.
+
+---
+
+**MSAParty**
+
+By: _______________________
+Name:
+Title:
+Date:
+
+**NDA Corp ltd**
+
+By: _______________________
+Name:
+Title:
+Date:

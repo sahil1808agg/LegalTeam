@@ -1,0 +1,67 @@
+# Non-Disclosure Agreement
+
+## 1. Recitals
+
+This Non-Disclosure Agreement ("**Agreement**") is entered into as of 2026-08-22 ("**Effective Date**") by and between FirstParty, [ENTITY TYPE TO BE COMPLETED], with a principal place of business at [ADDRESS TO BE COMPLETED] ("**Party A**"), and SecondCorporation, [ENTITY TYPE TO BE COMPLETED], with a principal place of business at [ADDRESS TO BE COMPLETED] ("**Party B**") (each a "**Party**" and together the "**Parties**").
+
+The Parties wish to explore and evaluate [PURPOSE TO BE COMPLETED — specify evaluation purpose] (the "**Purpose**"), during which each Party may disclose certain confidential and proprietary information to the other. This Agreement sets forth the terms under which such information will be protected.
+
+## 2. Definition of Confidential Information
+
+"**Confidential Information**" means any non-public, proprietary, or confidential information disclosed by one Party (the "**Discloser**") to the other Party (the "**Recipient**") in connection with the Purpose, whether disclosed orally, in writing, electronically, or by any other means, and whether or not marked or identified as confidential, including but not limited to business plans, financial information, technical data, product designs, customer and vendor information, and the existence and terms of this Agreement and the Parties' discussions.
+
+## 3. Obligations of Receiving Party
+
+The Recipient shall: (a) use the Discloser's Confidential Information solely for the Purpose; (b) protect the Confidential Information using at least the same degree of care it uses to protect its own confidential information of similar nature, and in no event less than a reasonable degree of care; (c) not disclose the Confidential Information to any third party except as expressly permitted under Section 5; and (d) not reproduce or retain the Confidential Information beyond what is reasonably necessary for the Purpose.
+
+## 4. Exclusions
+
+Confidential Information does not include information that the Recipient can demonstrate: (a) was already known to the Recipient without an obligation of confidentiality prior to disclosure by the Discloser; (b) is or becomes publicly available through no fault of the Recipient; (c) is independently developed by the Recipient without use of or reference to the Discloser's Confidential Information; or (d) is rightfully received by the Recipient from a third party without breach of any obligation of confidentiality owed to the Discloser.
+
+## 5. Permitted Disclosures
+
+The Recipient may disclose Confidential Information to its officers, employees, contractors, and professional advisors who have a need to know such information for the Purpose and who are bound by confidentiality obligations at least as protective as those in this Agreement. The Recipient may also disclose Confidential Information to the extent required by law, regulation, or a valid order of a court or other governmental authority, provided that, where legally permitted, the Recipient gives the Discloser prompt prior written notice of such requirement so that the Discloser may seek a protective order or other appropriate remedy.
+
+## 6. Term
+
+This Agreement shall commence on the Effective Date and shall remain in effect for 15 years, unless earlier terminated by either Party upon written notice to the other Party. Termination of this Agreement shall not relieve either Party of its obligations with respect to Confidential Information disclosed prior to termination.
+
+## 7. Return of Materials
+
+Upon the Discloser's written request, or upon termination or expiration of this Agreement, the Recipient shall promptly return or destroy all Confidential Information in its possession, including all copies, and, upon request, certify such destruction in writing, except that the Recipient may retain one archival copy solely to the extent required to comply with applicable law or bona fide document-retention policies, subject to the continuing confidentiality obligations of this Agreement. The obligations of confidentiality and non-use set forth in this Agreement shall survive termination or expiration of this Agreement for three (3) years from the date of disclosure or termination of this Agreement, whichever is later.
+
+## 8. Remedies
+
+Each Party acknowledges that unauthorized use or disclosure of Confidential Information may cause irreparable harm for which monetary damages alone would be an inadequate remedy. Accordingly, in addition to any other remedies available at law or in equity, the Discloser shall be entitled to seek injunctive or other equitable relief to prevent or restrain any actual or threatened breach of this Agreement, without the necessity of posting a bond.
+
+## 9. Governing Law
+
+This Agreement shall be governed by and construed in accordance with the laws of Punjab, without regard to its conflict of laws principles. Each Party irrevocably submits to the exclusive jurisdiction and venue of the courts located in Punjab for any action arising out of or relating to this Agreement.
+
+## 10. Entire Agreement
+
+This Agreement constitutes the entire agreement between the Parties with respect to its subject matter and supersedes all prior or contemporaneous agreements, understandings, and communications, whether written or oral, relating to such subject matter.
+
+## 11. Amendment
+
+This Agreement may be amended or modified only by a written instrument signed by authorized representatives of both Parties. No waiver of any provision of this Agreement shall be effective unless in writing and signed by the Party against whom the waiver is sought to be enforced.
+
+## 12. Counterparts
+
+This Agreement may be executed in one or more counterparts, each of which shall be deemed an original, and all of which together shall constitute one and the same instrument. A signature delivered by electronic means (including PDF or electronic signature platform) shall be deemed an original signature for all purposes.
+
+---
+
+**FirstParty**
+
+By: _______________________
+Name:
+Title:
+Date:
+
+**SecondCorporation**
+
+By: _______________________
+Name:
+Title:
+Date:
