@@ -25,3 +25,7 @@ obligations/output/
 # record of every tool call in a session (including ad hoc debugging), not
 # curated deliverable content; never commit
 obligations/audit/
+
+# Full pipeline report (run_pipeline.sh) - regenerable, assembled from
+# extraction/redline/obligations output already excluded above; never commit
+pipeline_report_*.md
