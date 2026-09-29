@@ -154,7 +154,7 @@ if [ "$VERBOSE" -eq 1 ]; then
 fi
 
 # Call Claude with MCP access to Slack
-OUTPUT=$(claude -p "$PROMPT" --allowedTools "Read,mcp__claude_ai_Slack__slack_send_message" 2>&1 || true)
+OUTPUT=$(claude -p "$PROMPT" --allowedTools "Read,mcp__claude_ai_Slack__slack_send_message,mcp__claude_ai_Slack__slack_search_channels,mcp__claude_ai_Slack__slack_list_user_channels" 2>&1 || true)
 
 if [ "$VERBOSE" -eq 1 ]; then
   echo "Response:"

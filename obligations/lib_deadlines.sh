@@ -18,7 +18,13 @@ TODAY_EPOCH="$(date -u -d "$TODAY" +%s)"
 # the string can't be parsed.
 parse_duration() {
   local duration_str
-  duration_str=$(echo "$1" | tr -d '"' | xargs | tr '[:upper:]' '[:lower:]')
+  # Trim via parameter expansion, not `xargs` — xargs treats an apostrophe
+  # in the source text (e.g. "ninety (90) days' notice") as an unmatched
+  # quote and errors instead of just trimming whitespace.
+  duration_str=$(echo "$1" | tr -d '"')
+  duration_str="${duration_str#"${duration_str%%[![:space:]]*}"}"
+  duration_str="${duration_str%"${duration_str##*[![:space:]]}"}"
+  duration_str=$(echo "$duration_str" | tr '[:upper:]' '[:lower:]')
   [[ -z "$duration_str" || "$duration_str" == "null" ]] && return 1
 
   if [[ $duration_str =~ ^([0-9]+)\.?[0-9]*[[:space:]]+([a-z]+) ]]; then

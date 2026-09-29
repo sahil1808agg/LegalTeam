@@ -244,7 +244,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   exit 0
 fi
 
-OUTPUT=$(claude -p "$PROMPT" --allowedTools "Read,mcp__claude_ai_Slack__slack_send_message" 2>&1 || true)
+OUTPUT=$(claude -p "$PROMPT" --allowedTools "Read,mcp__claude_ai_Slack__slack_send_message,mcp__claude_ai_Slack__slack_search_channels,mcp__claude_ai_Slack__slack_list_user_channels" 2>&1 || true)
 echo "$OUTPUT"
 
 if echo "$OUTPUT" | grep -qi "posted\|sent\|success"; then
